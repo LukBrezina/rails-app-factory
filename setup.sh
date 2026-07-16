@@ -9,14 +9,35 @@ RUBY_VERSION=3.4.7
 LITESTREAM_VERSION=0.3.13
 FACTORY_REPO="${FACTORY_REPO:-https://github.com/LukBrezina/rails-app-factory.git}"
 
+echo "=> machine name (becomes this machine's name in tailscale)"
+read -rp "   Name this machine [press enter to keep \"$(hostname)\"]: " NEW_HOSTNAME
+if [ -n "$NEW_HOSTNAME" ]; then
+  sudo hostnamectl set-hostname "$NEW_HOSTNAME"
+  sudo sed -i "s/^127\.0\.1\.1.*/127.0.1.1 $NEW_HOSTNAME/" /etc/hosts
+  grep -q '^127\.0\.1\.1' /etc/hosts || echo "127.0.1.1 $NEW_HOSTNAME" | sudo tee -a /etc/hosts >/dev/null
+fi
+
 echo "=> system packages"
 sudo apt-get update -y
-sudo apt-get install -y git tmux sqlite3 curl build-essential pkg-config autoconf bison \
+sudo apt-get install -y git tmux sqlite3 curl ufw build-essential pkg-config autoconf bison \
   libssl-dev libyaml-dev zlib1g-dev libffi-dev libreadline-dev libgmp-dev
 
 echo "=> tailscale (the factory is only reachable through it)"
 if ! command -v tailscale >/dev/null; then curl -fsSL https://tailscale.com/install.sh | sh; fi
-sudo tailscale up
+if ! tailscale status >/dev/null 2>&1; then
+  sudo tailscale up &
+  sleep 3  # ponytail: give tailscale a moment to print its login link first
+  echo
+  echo "   ^^^ Open that link in your browser and sign in to tailscale."
+  echo "       The script waits here and continues by itself."
+  wait %1
+fi
+
+echo "=> firewall (drop ALL incoming from the public internet; tailscale only)"
+sudo ufw allow in on tailscale0
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw --force enable
 
 echo "=> docker (kamal builds images here)"
 if ! command -v docker >/dev/null; then curl -fsSL https://get.docker.com | sh; fi
@@ -98,6 +119,9 @@ echo " Factory running:  http://$TS_IP:3000/start  (tailscale devices only)"
 echo
 echo " Open that in your browser — the Get started page signs Claude and"
 echo " GitHub in, right from the browser. No need to SSH back in."
+echo
+echo " The firewall now drops everything from the public internet, SSH"
+echo " included — from now on connect via tailscale: ssh $USER@$TS_IP"
 echo
 echo " Production servers later: order a VPS, SSH in once and run"
 echo "   curl -fsSL https://tailscale.com/install.sh | sh && sudo tailscale up --ssh"

@@ -24,10 +24,14 @@ see [Verified vs untested](#verified-vs-untested).
 bash <(curl -fsSL https://raw.githubusercontent.com/LukBrezina/rails-app-factory/main/setup.sh)
 ```
 
-The script installs tailscale, docker, ruby (rbenv), tmux, litestream, the
-GitHub CLI and Claude Code, generates an SSH key, then starts the factory as a
-systemd service **bound to the tailscale IP only** — it does not exist on the
-public internet. Open `http://<tailscale-ip>:3000` from any tailscale device:
+The script first asks for a machine name (enter keeps the current one — this
+becomes the machine's tailscale name), installs tailscale (it pauses once with
+a login link — open it in your browser, then it continues on its own), docker, ruby (rbenv), tmux,
+litestream, the GitHub CLI and Claude Code, generates an SSH key, enables a
+firewall that **drops all incoming traffic from the public internet** (SSH
+included — reconnect via the tailscale IP from then on), then starts the
+factory as a systemd service **bound to the tailscale IP only** — it does not
+exist on the public internet. Open `http://<tailscale-ip>:3000` from any tailscale device:
 the **Get started** page signs Claude and GitHub in from browser terminals —
 no need to SSH back in. Optional extra gate: `RAILS_APP_FACTORY_PASSWORD` in
 `.env` enables HTTP basic auth.

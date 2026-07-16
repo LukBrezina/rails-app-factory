@@ -1,7 +1,8 @@
 <% content_for :head do %>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+  <%# xterm is vendored (vendor/javascript) — this page mints a shell-capability token, so no third-party JS %>
+  <link rel="stylesheet" href="<%= asset_path("xterm.min.css") %>">
+  <script src="<%= asset_path("xterm.min.js") %>"></script>
+  <script src="<%= asset_path("addon-fit.min.js") %>"></script>
 <% end %>
 
 <nav class="flex items-stretch gap-1.5 px-7 pt-3 overflow-x-auto shrink-0 [scrollbar-width:none]">

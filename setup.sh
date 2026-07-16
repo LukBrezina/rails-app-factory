@@ -58,6 +58,10 @@ bin/rails db:prepare
 bin/rails tailwindcss:build
 mkdir -p "$HOME/projects"
 touch .env
+# The factory binds to the tailscale IP only (see the systemd unit below), so the
+# private network is the auth boundary. Acknowledge that so it serves without a
+# password; set RAILS_APP_FACTORY_PASSWORD in .env instead if you want a login.
+grep -q '^RAF_TRUST_NETWORK=' .env || echo 'RAF_TRUST_NETWORK=1' >> .env
 
 TS_IP="$(tailscale ip -4)"
 echo "=> systemd service (bound to the tailscale IP only — invisible from the public internet)"

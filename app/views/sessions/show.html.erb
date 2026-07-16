@@ -1,0 +1,78 @@
+<% content_for :head do %>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+<% end %>
+
+<nav class="flex items-stretch gap-1.5 px-7 pt-3 overflow-x-auto shrink-0 [scrollbar-width:none]">
+  <% @sessions.each do |s| %>
+    <a class="flex items-center gap-2 px-4 py-2 border border-b-0 clip-tag max-w-[300px] shrink-0 transition-colors
+              <%= s.name == @name ? "border-line bg-panel-2 text-strong shadow-[inset_0_2px_0_var(--color-live)]" : "border-line bg-panel text-dim hover:text-ink hover:bg-panel-2" %>"
+       href="<%= session_path(@app, s.name) %>" data-session-name="<%= s.name %>">
+      <span class="dot" data-dot data-state="<%= s.attached? ? "live" : "idle" %>"></span>
+      <span class="text-[12.5px] font-medium whitespace-nowrap"><%= s.name %></span>
+      <span class="text-[11px] italic <%= s.name == @name ? "text-dim" : "text-faint" %> whitespace-nowrap overflow-hidden text-ellipsis" data-title><%= s.title || s.display_command %></span>
+    </a>
+  <% end %>
+  <a class="flex items-center px-3.5 py-2 border border-b-0 border-line bg-panel clip-tag text-faint hover:text-live text-[15px]" href="<%= sessions_path(@app) %>" title="All sessions">+</a>
+</nav>
+
+<div class="flex-1 min-h-0 flex flex-col mx-7 mb-5 border border-line bg-panel-2 clip-tag" data-session-name="<%= @name %>">
+  <div class="flex items-center gap-2.5 px-4 py-2 border-b border-line-soft text-xs shrink-0">
+    <span class="dot" data-dot data-state="<%= @session.attached? ? "live" : "idle" %>"></span>
+    <strong class="font-medium text-strong"><%= @name %></strong>
+    <span class="flex-1 italic text-dim whitespace-nowrap overflow-hidden text-ellipsis" data-title><%= @session.title %></span>
+    <a data-preview target="_blank" href="<%= @session.preview_url(preview_host) %>"
+       title="Open the test version of your app"
+       class="text-[10px] tracking-[0.14em] text-idle border border-idle/40 px-2.5 py-1 clip-tag hover:bg-idle/10 <%= "hidden" unless @session.port %>">
+      TRY IT ↗
+    </a>
+    <a href="<%= session_mails_path(@app, @name) %>" title="Emails your app sent while testing"
+       class="text-[10px] tracking-[0.14em] text-idle border border-idle/40 px-2.5 py-1 clip-tag hover:bg-idle/10 <%= "hidden" unless @session.port %>">INBOX ✉</a>
+    <span class="cmd" data-cmd data-claude="<%= @session.claude? %>"><%= @session.display_command %></span>
+    <%= button_to "end ✕", session_path(@app, @name), method: :delete,
+          class: "text-faint hover:text-danger cursor-pointer bg-transparent border-0 p-1 font-mono text-xs tracking-wider",
+          form: { class: "contents", onsubmit: "return confirm('End this session? The workspace is cleaned up, but everything Claude saved stays in your project history.')" } %>
+  </div>
+  <div id="terminal" class="flex-1 min-h-0 overflow-hidden"></div>
+</div>
+
+<script type="module">
+  import { createConsumer } from "@rails/actioncable"
+
+  await document.fonts.load('13px "IBM Plex Mono"') // xterm measures glyphs at open()
+
+  const term = new Terminal({
+    fontSize: 13,
+    fontFamily: '"IBM Plex Mono", ui-monospace, monospace',
+    theme: {
+      background: "#efe9dc", foreground: "#4c473c", cursor: "#5e9c72", cursorAccent: "#faf6ee",
+      selectionBackground: "#ddd3c0",
+      black: "#4c473c", red: "#c25f50", green: "#5e9c72", yellow: "#b8862f",
+      blue: "#5f83a8", magenta: "#9c7a9c", cyan: "#58948d", white: "#efe9dc",
+      brightBlack: "#857d6b", brightRed: "#d07f6f", brightGreen: "#79b58c", brightYellow: "#cfa35a",
+      brightBlue: "#7fa0c2", brightMagenta: "#b294b2", brightCyan: "#77aca5", brightWhite: "#faf6ee"
+    }
+  })
+  const fit = new FitAddon.FitAddon()
+  term.loadAddon(fit)
+  term.open(document.getElementById("terminal"))
+  fit.fit()
+
+  const sub = createConsumer().subscriptions.create(
+    { channel: "TerminalChannel", token: <%= @token.to_json.html_safe %> },
+    {
+      connected() { this.perform("resize", { rows: term.rows, cols: term.cols }) },
+      received(data) { term.write(Uint8Array.from(atob(data), c => c.charCodeAt(0))) },
+      rejected() { term.write("\r\nCouldn't connect — reload the page to try again.\r\n") },
+      disconnected() { term.write("\r\nConnection lost — reload the page to reconnect.\r\n") }
+    }
+  )
+
+  term.onData(data => sub.perform("input", { data }))
+  addEventListener("resize", () => {
+    fit.fit()
+    sub.perform("resize", { rows: term.rows, cols: term.cols })
+  })
+  term.focus()
+</script>

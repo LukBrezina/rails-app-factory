@@ -1,0 +1,50 @@
+<section class="flex-1 flex items-center justify-center p-7">
+  <div class="w-full max-w-md border border-dashed border-line clip-tag p-8 bg-panel/50">
+    <div class="text-[10px] tracking-[0.3em] text-faint mb-2">NEW APP</div>
+    <p class="text-[11px] text-dim leading-relaxed mt-0 mb-6">
+      We'll create a brand-new, empty web app for you — and you can watch it being
+      built, live. Takes a few minutes.
+    </p>
+
+    <%= form_with model: @app, url: apps_path do |f| %>
+      <label class="block text-[10px] tracking-[0.2em] text-faint mb-1">NAME</label>
+      <%= f.text_field :title, placeholder: "My new app", required: true, autofocus: true, autocomplete: "off",
+            class: "w-full bg-transparent border-0 border-b border-line focus:border-live focus:ring-0
+                    text-strong text-[15px] font-medium px-0.5 py-1.5 placeholder:text-faint outline-none mb-1" %>
+      <p class="text-[10px] text-faint leading-relaxed mt-0 mb-6">Call it anything — spaces and capitals are fine, we tidy up the technical name automatically.</p>
+
+      <label class="block text-[10px] tracking-[0.2em] text-faint mb-1">CODING AGENT</label>
+      <%= f.select :agent, App::AGENTS,
+            {}, class: "w-full bg-panel border border-line text-ink text-[13px] px-2 py-2 mb-2 outline-none focus:border-live" %>
+      <p class="text-[11px] text-faint leading-relaxed mt-0 mb-8">
+        The AI developer that will build and change this app for you — you talk to it in plain language.
+      </p>
+
+      <div class="flex items-center gap-3 mb-6">
+        <span class="flex-1 border-t border-line-soft"></span>
+        <span class="text-[10px] tracking-[0.2em] text-faint">OR CONNECT AN APP YOU ALREADY HAVE</span>
+        <span class="flex-1 border-t border-line-soft"></span>
+      </div>
+      <label class="block text-[10px] tracking-[0.2em] text-faint mb-1">GIT ADDRESS (OPTIONAL)</label>
+      <%= f.text_field :repo_url, placeholder: "https://github.com/you/your-app.git", autocomplete: "off",
+            class: "w-full bg-transparent border-0 border-b border-line focus:border-live focus:ring-0
+                    text-strong text-[13px] px-0.5 py-1.5 placeholder:text-faint outline-none mb-1" %>
+      <p class="text-[10px] text-faint leading-relaxed mt-0 mb-3">
+        We'll download that app instead of creating a new one. A small
+        <code>config/rails_app_factory.rb</code> file in it tells the factory how to run it —
+        see the README for examples (Postgres and friends welcome).
+      </p>
+      <details class="mb-8">
+        <summary class="text-[10px] tracking-[0.2em] text-faint cursor-pointer hover:text-dim">PRIVATE REPO? GIVE THIS MACHINE ACCESS</summary>
+        <p class="text-[10px] text-faint leading-relaxed mt-2 mb-1">
+          Use the ssh address (<code>git@github.com:you/app.git</code>) and add this machine's key
+          to the repo — on GitHub: your repo → Settings → Deploy keys:
+        </p>
+        <% pubkey = Dir[File.expand_path("~/.ssh/id_*.pub")].first %>
+        <pre class="text-[9px] text-dim bg-panel-2 border border-line-soft p-2.5 overflow-x-auto whitespace-pre-wrap break-all m-0"><%= pubkey ? File.read(pubkey).strip : "No key yet — run: ssh-keygen -t ed25519 (setup.sh does this on the VPS)" %></pre>
+      </details>
+
+      <button class="w-full font-medium text-[11px] tracking-[0.16em] text-bg bg-live hover:brightness-110 py-2.5 clip-tag cursor-pointer">CREATE APP →</button>
+    <% end %>
+  </div>
+</section>

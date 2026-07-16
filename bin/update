@@ -1,0 +1,10 @@
+#!/bin/sh
+# Update the factory in place: pull, install, migrate, rebuild, restart.
+set -e
+cd "$(dirname "$0")/.."
+git pull --ff-only
+bundle install
+bin/rails db:migrate
+bin/rails tailwindcss:build
+sudo systemctl restart rails-app-factory 2>/dev/null || echo "=> restart the factory manually"
+echo "=> factory updated"

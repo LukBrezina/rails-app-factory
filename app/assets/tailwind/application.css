@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #f4efe6;
+  --color-panel: #faf6ee;
+  --color-panel-2: #efe9dc;
+  --color-line: #ddd3c0;
+  --color-line-soft: #e8e0d0;
+  --color-line-hover: #c9bda4;
+  --color-ink: #4c473c;
+  --color-dim: #857d6b;
+  --color-faint: #ab9f88;
+  --color-strong: #2f2b23;
+  --color-live: #5e9c72;
+  --color-idle: #c98f3f;
+  --color-claude: #c07a5b;
+  --color-danger: #c25f50;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-serif: "Fraunces", serif;
+}
+
+::selection { background: #e6dcc4; color: var(--color-strong); }
+
+/* machine-tag clipped corner */
+.clip-tag { clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%); }
+
+/* status dot — JS toggles data-state */
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--color-faint); }
+.dot[data-state="live"] { background: var(--color-live); animation: pulse 2.2s ease-out infinite; }
+.dot[data-state="idle"] { background: var(--color-idle); }
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgb(94 156 114 / 0.35); }
+  70%, 100% { box-shadow: 0 0 0 9px transparent; }
+}
+
+/* command chip — JS toggles data-claude */
+.cmd {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+  border: 1px solid var(--color-line);
+  padding: 2px 8px 1px;
+  white-space: nowrap;
+}
+.cmd[data-claude="true"] { color: var(--color-claude); border-color: rgb(192 122 91 / 0.45); }
+
+.gone { opacity: 0.35; filter: saturate(0); transition: opacity 0.4s; }
+
+.card { animation: rise 0.45s cubic-bezier(0.2, 0.7, 0.3, 1) backwards; }
+.card:nth-child(2) { animation-delay: 0.05s; }
+.card:nth-child(3) { animation-delay: 0.1s; }
+.card:nth-child(4) { animation-delay: 0.15s; }
+.card:nth-child(5) { animation-delay: 0.2s; }
+.card:nth-child(n + 6) { animation-delay: 0.25s; }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+
+/* FitAddon subtracts .xterm padding, not the container's */
+.xterm { padding: 10px 4px 10px 14px; }
+.xterm-viewport { scrollbar-width: thin; scrollbar-color: var(--color-line) transparent; }

@@ -1,13 +1,13 @@
 #!/bin/bash
 # Rails App Factory — development VPS bootstrap (Ubuntu 22.04 / 24.04).
 # Run as a non-root user with sudo:
-#   bash <(curl -fsSL https://raw.githubusercontent.com/YOURUSER/rails-app-factory/main/setup.sh)
+#   bash <(curl -fsSL https://raw.githubusercontent.com/LukBrezina/rails-app-factory/main/setup.sh)
 # Override the repo with: FACTORY_REPO=https://github.com/you/yourfork.git
 set -euo pipefail
 
 RUBY_VERSION=3.4.7
 LITESTREAM_VERSION=0.3.13
-FACTORY_REPO="${FACTORY_REPO:-https://github.com/YOURUSER/rails-app-factory.git}"
+FACTORY_REPO="${FACTORY_REPO:-https://github.com/LukBrezina/rails-app-factory.git}"
 
 echo "=> system packages"
 sudo apt-get update -y

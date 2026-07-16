@@ -21,7 +21,7 @@ see [Verified vs untested](#verified-vs-untested).
 3. SSH in as a sudo-capable user and run:
 
 ```sh
-bash <(curl -fsSL https://raw.githubusercontent.com/YOURUSER/rails-app-factory/main/setup.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/LukBrezina/rails-app-factory/main/setup.sh)
 ```
 
 The script installs tailscale, docker, ruby (rbenv), tmux, litestream, the

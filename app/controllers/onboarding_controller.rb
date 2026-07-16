@@ -14,6 +14,7 @@ class OnboardingController < ApplicationController
 
   # Polled by the sign-in page — the link appears mid-flow, after the page loads.
   def link
-    render json: { url: Onboarding.new.login_url("claude-login") }
+    onboarding = Onboarding.new
+    render json: { url: Onboarding::LOGINS.keys.lazy.filter_map { |name| onboarding.login_url(name) }.first }
   end
 end

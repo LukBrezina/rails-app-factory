@@ -46,27 +46,25 @@
       <div class="flex items-center gap-2.5 px-4 py-2 border-b border-line-soft text-xs shrink-0">
         <span class="dot" data-state="live"></span>
         <strong class="font-medium text-strong">
-          <%= @terminal == "claude-login" ? "Follow the steps below — when your sign-in link is ready, a button appears here." : "Follow the prompts — you'll get a code and a link; open the link on any device and enter the code." %>
+          <%= @terminal == "claude-login" ? "Follow the steps below — when your sign-in link is ready, a button appears here." : "You'll get an 8-character code below — the button here opens GitHub, where you type it in." %>
         </strong>
-        <% if @terminal == "claude-login" %>
-          <a id="login-link" hidden target="_blank" rel="noopener" class="ml-auto font-medium text-[10px] tracking-[0.14em] text-bg bg-live hover:brightness-110 px-2.5 py-1 clip-tag whitespace-nowrap">OPEN SIGN-IN PAGE ↗</a>
-        <% end %>
-        <a href="<%= onboarding_path %>" class="<%= "ml-auto" unless @terminal == "claude-login" %> text-[10px] tracking-[0.14em] text-live border border-live/40 px-2.5 py-1 clip-tag hover:bg-live/10 whitespace-nowrap">I'M DONE — CHECK ✓</a>
+        <span class="ml-auto flex items-center gap-2.5">
+          <a id="login-link" hidden target="_blank" rel="noopener" class="font-medium text-[10px] tracking-[0.14em] text-bg bg-live hover:brightness-110 px-2.5 py-1 clip-tag whitespace-nowrap">OPEN SIGN-IN PAGE ↗</a>
+          <a href="<%= onboarding_path %>" class="text-[10px] tracking-[0.14em] text-live border border-live/40 px-2.5 py-1 clip-tag hover:bg-live/10 whitespace-nowrap">I'M DONE — CHECK ✓</a>
+        </span>
       </div>
       <div id="terminal" class="flex-1 min-h-0 overflow-hidden"></div>
     </div>
     <%= render "shared/terminal", token: @token %>
-    <% if @terminal == "claude-login" %>
-      <script type="module">
-        // The sign-in link only appears mid-flow, so poll for it.
-        const link = document.getElementById("login-link")
-        setInterval(async () => {
-          const { url } = await fetch("<%= onboarding_link_path %>").then(r => r.json()).catch(() => ({}))
-          if (url) link.href = url
-          link.hidden = !url
-        }, 2000)
-      </script>
-    <% end %>
+    <script type="module">
+      // The sign-in link only appears mid-flow, so poll for it.
+      const link = document.getElementById("login-link")
+      setInterval(async () => {
+        const { url } = await fetch("<%= onboarding_link_path %>").then(r => r.json()).catch(() => ({}))
+        if (url) link.href = url
+        link.hidden = !url
+      }, 2000)
+    </script>
   <% elsif @onboarding.done? %>
     <div class="border border-dashed border-live/40 clip-tag p-6 text-center">
       <p class="m-0 mb-4 text-[13px] text-live">All set — your factory is ready.</p>

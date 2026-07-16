@@ -5,7 +5,9 @@
 class Onboarding
   LOGINS = {
     "claude-login" => "claude", # the user types /login inside
-    "github-login" => "gh auth login --git-protocol https --web && gh auth setup-git"
+    # BROWSER=true: headless box has no browser — a no-op "open" beats gh's
+    # scary failure spew; the Get started page shows the link as a button.
+    "github-login" => "BROWSER=true gh auth login --git-protocol https --web && gh auth setup-git"
   }.freeze
 
   def claude_installed?

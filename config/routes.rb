@@ -3,6 +3,7 @@ Rails.application.routes.draw do
   resources :apps, only: %i[new create]
   get "start" => "onboarding#show", as: :onboarding
   post "start" => "onboarding#create"
+  get "start/link" => "onboarding#link", as: :onboarding_link
 
   scope ":app", constraints: { app: /\w+(?:-\w+)*/ } do
     resources :sessions, only: %i[index show create destroy] do

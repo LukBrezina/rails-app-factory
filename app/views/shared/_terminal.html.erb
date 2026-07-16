@@ -39,6 +39,29 @@
     }
   )
 
+  // Copies happen inside tmux (drag-select, or apps like claude's "c to copy")
+  // and arrive here as OSC 52 — xterm core ignores it, so bridge it to the
+  // browser clipboard ourselves.
+  term.parser.registerOscHandler(52, data => {
+    try {
+      const b64 = data.split(";")[1]
+      if (!b64 || b64 === "?") return true // "?" is a clipboard read — unsupported
+      const text = new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0)))
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).catch(() => {})
+      } else { // plain-http fallback: execCommand needs a real DOM selection
+        const ta = document.createElement("textarea")
+        ta.value = text
+        document.body.append(ta)
+        ta.select()
+        document.execCommand("copy")
+        ta.remove()
+        term.focus()
+      }
+    } catch {} // bad base64 from a misbehaving app — never break the parser
+    return true
+  })
+
   term.onData(data => sub.perform("input", { data }))
   addEventListener("resize", () => {
     fit.fit()

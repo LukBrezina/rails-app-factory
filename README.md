@@ -248,6 +248,15 @@ Live UI: the layout polls `/:app/sessions.json` every 4s and patches
   without it xterm turns wheel scrolling into arrow keys (shell history).
   Style also sets a pastel status bar; sessions are created detached, styled,
   then used.
+- **Terminal copy is OSC 52, not browser selection.** Mouse mode means a drag
+  selects in *tmux*, which copies and emits OSC 52 — xterm core silently drops
+  it, so `shared/_terminal` registers a handler that writes it to the browser
+  clipboard (with an `execCommand` fallback for plain-http). `set-clipboard on`
+  (in `style`) additionally lets apps inside tmux set it (claude's "c to
+  copy"). Don't remove either half or copying dies silently again.
+- **`=name` targets only work for session commands** (`has-session`,
+  `kill-session`) — pane-target commands like `capture-pane` reject them;
+  use the bare name.
 - **tailwind v4 watcher exits without a TTY**, killing foreman/`bin/dev` —
   headless contexts must use `tailwindcss:build` + `rails server` (setup.sh's
   systemd unit does exactly that).

@@ -11,4 +11,9 @@ class OnboardingController < ApplicationController
     Onboarding.new.launch(name) if Onboarding::LOGINS.key?(name) # whitelist — never launch arbitrary input
     redirect_to onboarding_path
   end
+
+  # Polled by the sign-in page — the link appears mid-flow, after the page loads.
+  def link
+    render json: { url: Onboarding.new.login_url("claude-login") }
+  end
 end

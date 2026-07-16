@@ -44,6 +44,18 @@ class Onboarding
 
   def tmux_name(name) = "factory--#{name}"
 
+  # Claude's sign-in URL can't be copied out of the browser terminal: tmux
+  # mouse mode swallows the selection, and the TUI hard-wraps the URL with
+  # real newlines anyway. Scrape it from the pane and show it as a link.
+  def login_url(name)
+    return unless running?(name)
+    extract_url(`tmux capture-pane -p -t '#{tmux_name(name)}'`)
+  end
+
+  def extract_url(text)
+    text.gsub(/ +$/, "")[%r{https://\S+(?:\n\S+)*}]&.delete("\n")
+  end
+
   private
 
   def kill(name) = system("tmux", "kill-session", "-t", "=#{tmux_name(name)}", err: File::NULL, out: File::NULL)

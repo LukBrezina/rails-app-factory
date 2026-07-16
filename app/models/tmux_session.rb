@@ -80,6 +80,10 @@ class TmuxSession
     def style(target)
       system("tmux", "set-option", "-t", target, "mouse", "on")
       system("tmux", "set-option", "-t", target, "status-style", "bg=#e8e0d0,fg=#857d6b")
+      # "on" (not the default "external") lets apps inside tmux set the
+      # clipboard too (claude's "c to copy") — the browser xterm turns the
+      # resulting OSC 52 into a real clipboard write (see shared/_terminal).
+      system("tmux", "set-option", "-s", "set-clipboard", "on")
     end
   end
 

@@ -1,0 +1,38 @@
+#cloud-config
+# The admin box: openstack CLI + one scoped credential + the backup cron.
+# Log: /var/log/backup-fleet.log
+
+hostname: appsmoothly-admin
+package_update: true
+
+packages:
+  - python3-openstackclient
+  - unattended-upgrades
+
+write_files:
+  - path: /root/openstack.env
+    permissions: "0600"
+    content: |
+      export OS_AUTH_TYPE=v3applicationcredential
+      export OS_AUTH_URL=${os_auth_url}
+      export OS_IDENTITY_API_VERSION=3
+      export OS_INTERFACE=public
+      export OS_REGION_NAME=${os_region}
+      export OS_APPLICATION_CREDENTIAL_ID=${backup_credential_id}
+      export OS_APPLICATION_CREDENTIAL_SECRET=${backup_credential_secret}
+
+  - path: /etc/cron.daily/backup-fleet
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      # Nightly whole-machine image of every customer box, keeping the last 7.
+      # Self-discovering: everything named appsmoothly-* except this box —
+      # no roster to sync, new customers are covered automatically.
+      set -euo pipefail
+      exec >>/var/log/backup-fleet.log 2>&1
+      date -u
+      . /root/openstack.env
+      for server in $(openstack server list -f value -c Name | grep '^appsmoothly-' | grep -v '^appsmoothly-admin$'); do
+        echo "=> imaging $server"
+        openstack server backup create --name "$server" --type daily --rotate 7 "$server"
+      done

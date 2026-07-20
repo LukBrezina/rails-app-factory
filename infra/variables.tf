@@ -50,6 +50,37 @@ variable "network" {
   default = "ext-net1"
 }
 
+variable "admin_flavor" {
+  description = "Smallest flavor that exists — the admin box only runs a cron. Verify: openstack flavor list"
+  type        = string
+  default     = "a1-ram2-disk20-perf1"
+}
+
+# Only used to write the admin box's /root/openstack.env — keep in sync with
+# the OS_* values in .env (your openrc).
+variable "os_auth_url" {
+  type    = string
+  default = "https://api.pub1.infomaniak.cloud/identity"
+}
+
+variable "os_region" {
+  type    = string
+  default = "dc3-a"
+}
+
+# A SECOND application credential, for the admin box's backup cron only.
+# Create it by hand in the Infomaniak console (Identity → Application
+# Credentials) — Keystone forbids an application credential from creating
+# another one, so tofu cannot do this for you.
+variable "backup_credential_id" {
+  type = string
+}
+
+variable "backup_credential_secret" {
+  type      = string
+  sensitive = true
+}
+
 variable "gcs_location" {
   type    = string
   default = "europe-west6"

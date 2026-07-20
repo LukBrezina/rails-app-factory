@@ -67,6 +67,7 @@ module "customer" {
   zone_id      = openstack_dns_zone_v2.apps.id
   admin_email  = each.value.admin_email
   admin_cidr   = var.admin_cidr
+  admin_ip     = openstack_compute_instance_v2.admin.access_ip_v4
   keypair      = openstack_compute_keypair_v2.admin.name
   flavor       = var.flavor
   image        = var.image

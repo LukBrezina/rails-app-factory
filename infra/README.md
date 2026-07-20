@@ -22,9 +22,13 @@ credentials never touch customer boxes.
 
 ## One-time bootstrap
 
-1. **Infomaniak**: create a Public Cloud application credential; copy its
-   values into `.env`. Verify the three names in `variables.tf` against your
-   project: `openstack flavor list / image list / network list`.
+1. **Infomaniak**: create TWO Public Cloud application credentials in the
+   console — one for tofu (the `OS_*` values in `.env`) and one for the admin
+   box's backup cron (`TF_VAR_backup_credential_*`). Two because Keystone
+   forbids an application credential from creating another one, so tofu can't
+   mint the second itself. Verify the flavor/image/network names in
+   `variables.tf` against your project:
+   `openstack flavor list / image list / network list` (also `admin_flavor`).
 2. **Google**: a service account with Storage Admin, its JSON key path in
    `.env`, then the state bucket (state can't create its own home):
 
@@ -69,26 +73,32 @@ are already on. Let the customer in:
 Kamal deploys to `localhost` (the `claude` user's key is root-authorized,
 loopback only).
 
-## Machine images — the safety net independent of all of the above
+## The admin box + machine images
 
-Infomaniak's OpenStack has no backup *scheduler* ("there is no integrated
-automated backup", their docs), but whole-machine images are in the API — so
-the laptop is the scheduler:
+`tofu apply` also creates **appsmoothly-admin**: a tiny always-on box that is
+deliberately NOT a customer box — no Caddy, no Authelia, no factory, nothing
+listening but key-only SSH. It exists for two things:
 
-```sh
-infra/backup-fleet          # images every box, keeps the last 7 (ROTATE=n to change)
-```
+- **Stable IP.** Customer boxes accept SSH from it (and from your
+  `admin_cidr`), so when your home IP changes you jump through it instead of
+  re-applying: `ssh -J ubuntu@<admin-ip> ubuntu@<customer-ip>`.
+- **The backup cron.** Infomaniak's OpenStack has no backup *scheduler*
+  ("there is no integrated automated backup", their docs), but whole-machine
+  images are in the API. `/etc/cron.daily/backup-fleet` on the admin box
+  images every `appsmoothly-*` server (self-discovering — new customers are
+  covered automatically), keeping the last 7. Log:
+  `/var/log/backup-fleet.log`. It holds exactly one credential: the second
+  application credential — no GCP, no Mailgun, no tofu state, so owning the
+  admin box never means owning the platform.
 
-Cron it (`0 4 * * *  /path/to/infra/backup-fleet` — boxes can be unresponsive
-for a couple of minutes while imaging) and run it by hand before risky
-changes. Restore is pure provider machinery, none of this repo's code
-involved: `openstack server rebuild --image <backup-image> appsmoothly-<name>`.
-A laptop cron only fires while the laptop is awake — good enough for POC;
-move it to any tiny always-on runner (never a customer box — it holds fleet
-credentials) when that stops being true. Infomaniak's SwissBackup
-(agent-in-instance to their separate backup infra) is the managed alternative
-if this ever needs to be provider-hosted; it's per-device and console-managed,
-so it's not wired into the one-command flow.
+Restore is pure provider machinery, none of this repo's code involved:
+`openstack server rebuild --image <backup-image> appsmoothly-<name>`.
+`infra/backup-fleet` (the laptop script) stays for ad-hoc images before risky
+changes. Boxes can be unresponsive for a couple of minutes while imaging —
+hence a nightly cron. Infomaniak's SwissBackup (agent-in-instance to their
+separate backup infra) remains the managed alternative if this ever needs to
+be provider-hosted; it's per-device and console-managed, so it's not wired
+into the one-command flow.
 
 Layered recovery, worst case first: machine image (whole box, provider-side)
 → bucket (litestream data + nightly code bundles + Authelia users/passkeys
@@ -114,8 +124,9 @@ tar under `box/`) → git history inside each app.
    rewind five minutes (`bin/restore-prod` quoting is the least-tested code).
 6. Force `sudo /etc/cron.daily/backup-code`, confirm `code/*.bundle` and
    `box/authelia-*.tgz` in the bucket, and `git clone` one bundle locally.
-7. `infra/backup-fleet`, wait for the image to go active
-   (`openstack image list`), then the full drill on a throwaway change:
-   `openstack server rebuild --image ... appsmoothly-<name>`.
+7. On the admin box: `sudo /etc/cron.daily/backup-fleet`, wait for the image
+   to go active (`openstack image list`), then the full drill on a throwaway
+   change: `openstack server rebuild --image ... appsmoothly-<name>`. Also
+   confirm the jump path: `ssh -J ubuntu@<admin-ip> ubuntu@<customer-ip>`.
 8. From outside: only 80/443 answer. Then `infra/customer down` + `up` again —
    the whole point.

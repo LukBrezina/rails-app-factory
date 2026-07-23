@@ -42,7 +42,7 @@ module Production
     SMTP_PASSWORD=$SMTP_PASSWORD
   EOS
 
-  # Provisioned boxes carry a per-customer SMTP credential (Mailgun, via infra/).
+  # Provisioned boxes carry a per-customer SMTP credential (Mailgun, via appsmoothly-infra).
   def smtp_clear_env
     return {} if ENV["RAF_SMTP_ADDRESS"].blank?
     { "SMTP_ADDRESS" => ENV["RAF_SMTP_ADDRESS"], "SMTP_PORT" => ENV.fetch("RAF_SMTP_PORT", "587"),

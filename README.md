@@ -16,11 +16,13 @@ see [Verified vs untested](#verified-vs-untested).
 
 ### Get started
 
-Boxes are provisioned with OpenTofu: one `tofu apply` per customer creates the
-VPS (cloud-init lays down Caddy, Authelia, docker, ruby, Claude Code and the
-factory), a backup bucket that refuses deletion, and a Mailgun sending domain.
-See [infra/README.md](infra/README.md) for the whole flow. Once the DNS
-records from `tofu output dns_records` exist, open
+Boxes are provisioned with OpenTofu: one `./customer up` per customer creates
+the VPS (cloud-init lays down Caddy, Authelia, docker, ruby, Claude Code and
+the factory), a backup bucket that refuses deletion, and a Mailgun sending
+domain. That lives in a separate private repo,
+[appsmoothly-infra](https://github.com/LukBrezina/appsmoothly-infra) — this
+repo is the factory itself and knows nothing about how its box was made. Once
+the DNS records from `tofu output dns_records` exist, open
 `https://terminal.<customer>.appsmoothly.com`, sign in (admin password sits on
 the box in `/root/authelia-admin-password.txt`), and use the **Get started**
 page to sign Claude and GitHub in from browser terminals. Let people in with
@@ -194,7 +196,6 @@ S3-compatible store works.
 | `bin/hook` | plain-Ruby hook runner (setup/server/teardown DSL) — executed with the *app's* Ruby, keep it old-Ruby-compatible |
 | `bin/create-app` | runs in `<app>--setup` tmux: `rails new` + plumbing, or `git clone` for connected apps |
 | `bin/update` | update a running factory in place (pull, migrate, rebuild, restart) |
-| `infra/` | OpenTofu: per-customer VPS (cloud-init: Caddy/Authelia/factory), backup bucket, Mailgun domain |
 | `lib/factory.rb` | projects dir, safe_name, free_port, tailscale DNS name, message verifier, `clean_tmux!` |
 | `app/views/layouts/application.html.erb` | header app switcher, sidebar, flash, 4s JSON poll |
 | `app/assets/tailwind/application.css` | design tokens (`@theme`) + the few custom pieces (clip-tag, dots, cmd chips) |
@@ -302,8 +303,9 @@ branch; wheel scrollback; hook runner (subprocess tests).
 Implemented but **not yet run against real infrastructure**: `kamal setup/
 deploy` (incl. the localhost + local-registry path), litestream against a
 real GCS bucket, `bin/restore-prod` (its nested quoting through `kamal server
-exec` is the most likely thing to need a fix), the whole `infra/` provisioning
-path (tofu + cloud-init + Caddy + Authelia + Mailgun) on a fresh box, the Get
+exec` is the most likely thing to need a fix), the whole provisioning path
+(appsmoothly-infra: tofu + cloud-init + Caddy + Authelia + Mailgun) on a fresh
+box, the Get
 started sign-in flows (`claude` login / `gh auth login` inside their tmux
 sessions), and the `git clone` connect flow for private repos.
 

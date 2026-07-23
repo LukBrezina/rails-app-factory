@@ -1,8 +1,9 @@
 # appsmoothly.com — one VPS per customer. Drive it with the wrapper script:
-#   infra/customer up <name> <admin-email>     infra/customer down <name>
-# All credentials come from infra/.env (see .env.example); the script sources
+#   ./customer up <name> <admin-email>     ./customer down <name>
+# All credentials come from .env (see .env.example); the script sources
 # it and manages the `customers` map in customers.auto.tfvars.json.
-# Runs from your laptop only — fleet credentials never live on customer boxes.
+# Runs on the admin box (the control plane) — see README.md. Fleet credentials
+# never live on customer boxes.
 
 terraform {
   required_version = ">= 1.6"
@@ -26,13 +27,22 @@ terraform {
     }
   }
 
-  # One-time bootstrap (state can't create its own bucket — see infra/README.md):
-  #   gcloud storage buckets create gs://appsmoothly-tofu-state --location=europe-west6 --uniform-bucket-level-access
+  # One-time bootstrap (state can't create its own bucket — see README.md):
+  #   gcloud storage buckets create gs://appsmoothly-tofu-state --location=europe-west1 --uniform-bucket-level-access
   #   gcloud storage buckets update gs://appsmoothly-tofu-state --versioning
   backend "gcs" {
     bucket = "appsmoothly-tofu-state"
     prefix = "appsmoothly"
   }
+}
+
+# The roster (customers.auto.tfvars.json) is a tofu *input*, so state doesn't
+# record it — and it stays gitignored (customer names and emails don't belong
+# in git even here). Park a copy in state so the versioned bucket is the source
+# of truth and the local file is just a cache: ./customer rebuilds it from here
+# on every run. A lost or stale copy can then never read as "delete these".
+resource "terraform_data" "roster" {
+  input = var.customers
 }
 
 provider "openstack" {}

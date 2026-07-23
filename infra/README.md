@@ -3,8 +3,8 @@
 One command per customer, up or down:
 
 ```sh
-infra/customer up acme acme-owner@example.com
-infra/customer down acme
+./customer up acme acme-owner@example.com
+./customer down acme
 ```
 
 `up` creates everything: an Infomaniak VPS (Caddy on public 80/443 → Authelia
@@ -17,27 +17,38 @@ purpose (the backup history is the one thing teardown must not shred; purge it
 after retention with `gcloud storage rm -r gs://appsmoothly-<name>`).
 
 All credentials live in **one file**: `cp .env.example .env`, fill it in, and
-`infra/customer` sources it itself. Run from your laptop only — fleet
-credentials never touch customer boxes.
+`./customer` sources it itself. You run it **from the admin box**, over
+the tailnet — see "The admin box" below for why that box holds everything and
+what it costs. Fleet credentials still never touch customer boxes.
 
 ## One-time bootstrap
 
-1. **Infomaniak**: create TWO Public Cloud application credentials in the
-   console — one for tofu (the `OS_*` values in `.env`) and one for the admin
-   box's backup cron (`TF_VAR_backup_credential_*`). Two because Keystone
-   forbids an application credential from creating another one, so tofu can't
-   mint the second itself. Verify the flavor/image/network names in
+1. **Infomaniak**: create a Public Cloud application credential in the console
+   (the `OS_*` values in `.env`). Verify the flavor/image/network names in
    `variables.tf` against your project:
    `openstack flavor list / image list / network list` (also `admin_flavor`).
 2. **Google**: a service account with Storage Admin, its JSON key path in
    `.env`, then the state bucket (state can't create its own home):
 
    ```sh
-   gcloud storage buckets create gs://appsmoothly-tofu-state --location=europe-west6 --uniform-bucket-level-access
+   gcloud storage buckets create gs://appsmoothly-tofu-state --location=europe-west1 --uniform-bucket-level-access
    gcloud storage buckets update gs://appsmoothly-tofu-state --versioning
    ```
-3. **Mailgun**: API key into `.env`.
-4. **Nameservers** (once ever): after the first `tofu init && tofu apply`
+3. **Mailgun**: API key into `.env`. **Tailscale**: a reusable, tagged auth
+   key into `TF_VAR_tailscale_auth_key`.
+4. **The admin box** — the only apply you run from the laptop. `tofu init &&
+   tofu apply` creates it; it comes up on your tailnet with tofu, ruby and
+   this repo at `/opt/appsmoothly`, but no credentials (user_data is readable
+   from inside the instance, so nothing secret is baked in). Seed it once:
+
+   ```sh
+   scp .env <your-gcp-key>.json ubuntu@appsmoothly-admin:/opt/appsmoothly/
+   ```
+
+   Then fix `GOOGLE_APPLICATION_CREDENTIALS` in the box's copy to the path it
+   now has there (`/opt/appsmoothly/gcp-key.json`). From then on:
+   `ssh ubuntu@appsmoothly-admin`, `cd /opt/appsmoothly`, `./customer up …`.
+5. **Nameservers** (once ever): after the first `tofu init && tofu apply`
    creates the `appsmoothly.com` Designate zone, look up its assigned
    nameservers (`openstack recordset list appsmoothly.com.` — the NS records)
    and set them as appsmoothly.com's nameservers at the domain registrar.
@@ -77,23 +88,38 @@ loopback only).
 
 `tofu apply` also creates **appsmoothly-admin**: a tiny always-on box that is
 deliberately NOT a customer box — no Caddy, no Authelia, no factory, nothing
-listening but key-only SSH. It exists for two things:
+listening but key-only SSH — and **no ingress rule at all**. It joins your
+tailnet on first boot (`TF_VAR_tailscale_auth_key`) and that is the only way
+in: `ssh ubuntu@appsmoothly-admin`. Not a lockout risk — if tailscaled ever
+fails to start, add an ssh rule to `admin.tf` and `tofu apply`; secgroup rules
+are a provider-side API call that doesn't need the box to be reachable. It
+exists for three things:
 
+- **Provisioning.** `./customer` runs here, from `/opt/appsmoothly`. That
+  means this box holds the OpenStack credential, the GCP key, the Mailgun key
+  and write access to tofu state — and state stores every customer's HMAC and
+  SMTP secret in plaintext. **Owning this box is owning the platform.** That is
+  the accepted trade for provisioning from anywhere without the laptop, and
+  it's why the box has zero ingress and runs nothing but cron. It's also why
+  there is only one OpenStack credential now: a second one bought nothing once
+  the box held the first.
 - **Stable IP.** Customer boxes accept SSH from it (and from your
   `admin_cidr`), so when your home IP changes you jump through it instead of
-  re-applying: `ssh -J ubuntu@<admin-ip> ubuntu@<customer-ip>`.
+  re-applying: `ssh -J ubuntu@<admin-ip> ubuntu@<customer-ip>` (the jump uses
+  the admin box's *public* IP, which is what customer secgroups trust).
 - **The backup cron.** Infomaniak's OpenStack has no backup *scheduler*
   ("there is no integrated automated backup", their docs), but whole-machine
-  images are in the API. `/etc/cron.daily/backup-fleet` on the admin box
-  images every `appsmoothly-*` server (self-discovering — new customers are
-  covered automatically), keeping the last 7. Log:
-  `/var/log/backup-fleet.log`. It holds exactly one credential: the second
-  application credential — no GCP, no Mailgun, no tofu state, so owning the
-  admin box never means owning the platform.
+  images are in the API. `/etc/cron.daily/backup-fleet` images every
+  `appsmoothly-*` server (self-discovering — new customers are covered
+  automatically), keeping the last 7. Log: `/var/log/backup-fleet.log`.
+
+The instance carries `prevent_destroy` — without it, an apply run *on* the box
+that replaces the box would destroy it mid-apply. Changing its `user_data` now
+errors instead; rebuild it deliberately, from the laptop.
 
 Restore is pure provider machinery, none of this repo's code involved:
 `openstack server rebuild --image <backup-image> appsmoothly-<name>`.
-`infra/backup-fleet` (the laptop script) stays for ad-hoc images before risky
+`./backup-fleet` (the laptop script) stays for ad-hoc images before risky
 changes. Boxes can be unresponsive for a couple of minutes while imaging —
 hence a nightly cron. Infomaniak's SwissBackup (agent-in-instance to their
 separate backup infra) remains the managed alternative if this ever needs to
@@ -112,7 +138,7 @@ tar under `box/`) → git history inside each app.
 
 ## First-box smoke test, in risk order
 
-1. `infra/customer up` runs clean; the Designate zone + records exist
+1. `./customer up` runs clean; the Designate zone + records exist
    (`openstack recordset list appsmoothly.com.`).
 2. Authelia login works on your phone (passkey on mobile Safari) and a
    password-reset mail arrives (proves Mailgun + its DNS).
@@ -128,5 +154,5 @@ tar under `box/`) → git history inside each app.
    to go active (`openstack image list`), then the full drill on a throwaway
    change: `openstack server rebuild --image ... appsmoothly-<name>`. Also
    confirm the jump path: `ssh -J ubuntu@<admin-ip> ubuntu@<customer-ip>`.
-8. From outside: only 80/443 answer. Then `infra/customer down` + `up` again —
+8. From outside: only 80/443 answer. Then `./customer down` + `up` again —
    the whole point.

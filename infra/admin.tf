@@ -1,25 +1,20 @@
-# Always-on admin box: a stable IP the customer SSH rules can trust (your
-# home IP changes; this one doesn't) and the nightly backup-fleet cron
-# (Infomaniak has no backup scheduler and the laptop isn't always awake).
+# The control plane: this is where you run ./customer from, plus the
+# nightly backup-fleet cron (Infomaniak has no backup scheduler and the laptop
+# isn't always awake), plus the stable IP customer SSH rules trust.
 #
-# Deliberately NOT a customer box: no Caddy/Authelia/factory, nothing
-# listening but SSH (key-only, open — it's the fallback when your home IP
-# changes). It holds exactly one credential: a second OpenStack application
-# credential for imaging servers — no GCP, no Mailgun, no tofu state.
+# It holds the whole platform — OpenStack credential, GCP key, Mailgun key,
+# and read/write on tofu state (every customer's HMAC and SMTP secret sits in
+# there in plaintext). That is the deliberate trade for provisioning from
+# anywhere; it is why there is NO ingress at all and the tailnet is the only
+# way in. If tailscaled ever fails to come up, add an ssh rule here and apply
+# from the laptop — secgroup rules are a provider-side API call, so an
+# unreachable box is never a lockout.
+#
+# Not a customer box: no Caddy/Authelia/factory, nothing listening.
 
 resource "openstack_networking_secgroup_v2" "admin" {
   name                 = "appsmoothly-admin"
   delete_default_rules = true
-}
-
-resource "openstack_networking_secgroup_rule_v2" "admin_ssh" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 22
-  port_range_max    = 22
-  remote_ip_prefix  = "0.0.0.0/0"
-  security_group_id = openstack_networking_secgroup_v2.admin.id
 }
 
 resource "openstack_networking_secgroup_rule_v2" "admin_egress_v4" {
@@ -46,11 +41,15 @@ resource "openstack_compute_instance_v2" "admin" {
   }
 
   user_data = templatefile("${path.module}/admin-cloud-init.yaml.tftpl", {
-    os_auth_url              = var.os_auth_url
-    os_region                = var.os_region
-    backup_credential_id     = var.backup_credential_id
-    backup_credential_secret = var.backup_credential_secret
+    tailscale_auth_key = var.tailscale_auth_key
   })
+
+  # This box runs the applies. Without this, an apply from the box can destroy
+  # (or replace, which is destroy-first) the box mid-apply. Changing user_data
+  # will now error instead — rebuild it deliberately, from the laptop.
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 output "admin_ip" {

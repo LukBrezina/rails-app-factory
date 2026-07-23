@@ -1,5 +1,16 @@
 #cloud-config
-# The admin box: openstack CLI + one scoped credential + the backup cron.
+# The control plane: tofu + the backup cron, reachable only over the tailnet.
+# Neither the repo nor the credentials are baked in here — user_data is
+# readable from inside the instance and stored in tofu state, and this repo is
+# private. Seed both once after first boot, with your own agent forwarded:
+#
+#   ssh -A ubuntu@appsmoothly-admin \
+#     git clone git@github.com:LukBrezina/appsmoothly-infra.git /opt/appsmoothly
+#   scp .env <gcp-key>.json ubuntu@appsmoothly-admin:/opt/appsmoothly/
+#
+# `ssh -A` + `git pull` is also how you update it later: no deploy key on the
+# box, so a box compromise doesn't hand over the repo.
+#
 # Log: /var/log/backup-fleet.log
 
 hostname: appsmoothly-admin
@@ -8,19 +19,10 @@ package_update: true
 packages:
   - python3-openstackclient
   - unattended-upgrades
+  - git
+  - ruby # ./customer's JSON handling
 
 write_files:
-  - path: /root/openstack.env
-    permissions: "0600"
-    content: |
-      export OS_AUTH_TYPE=v3applicationcredential
-      export OS_AUTH_URL=${os_auth_url}
-      export OS_IDENTITY_API_VERSION=3
-      export OS_INTERFACE=public
-      export OS_REGION_NAME=${os_region}
-      export OS_APPLICATION_CREDENTIAL_ID=${backup_credential_id}
-      export OS_APPLICATION_CREDENTIAL_SECRET=${backup_credential_secret}
-
   - path: /etc/cron.daily/backup-fleet
     permissions: "0755"
     content: |
@@ -31,8 +33,20 @@ write_files:
       set -euo pipefail
       exec >>/var/log/backup-fleet.log 2>&1
       date -u
-      . /root/openstack.env
+      set -a; . /opt/appsmoothly/.env; set +a
       for server in $(openstack server list -f value -c Name | grep '^appsmoothly-' | grep -v '^appsmoothly-admin$'); do
         echo "=> imaging $server"
         openstack server backup create --name "$server" --type daily --rotate 7 "$server"
       done
+
+runcmd:
+  # Tailnet first — with no ingress rule, this is the only way in. If it
+  # fails, the box is unreachable until you add an ssh rule and apply.
+  - curl -fsSL https://tailscale.com/install.sh | sh
+  - tailscale up --auth-key=${tailscale_auth_key} --hostname=appsmoothly-admin
+
+  - curl -fsSL https://get.opentofu.org/install-opentofu.sh -o /tmp/install-opentofu.sh
+  - sh /tmp/install-opentofu.sh --install-method deb
+  - rm -f /tmp/install-opentofu.sh
+
+  - install -d -o ubuntu -g ubuntu /opt/appsmoothly

@@ -1,5 +1,5 @@
 variable "customers" {
-  description = "One entry per customer box; the key becomes <key>.<zone>. Managed by infra/customer in customers.auto.tfvars.json."
+  description = "One entry per customer box; the key becomes <key>.<zone>. Managed by ./customer in customers.auto.tfvars.json."
   type = map(object({
     admin_email = string # first Authelia login + Let's Encrypt contact
   }))
@@ -56,34 +56,19 @@ variable "admin_flavor" {
   default     = "a1-ram2-disk20-perf1"
 }
 
-# Only used to write the admin box's /root/openstack.env — keep in sync with
-# the OS_* values in .env (your openrc).
-variable "os_auth_url" {
-  type    = string
-  default = "https://api.pub1.infomaniak.cloud/identity"
-}
-
-variable "os_region" {
-  type    = string
-  default = "dc3-a"
-}
-
-# A SECOND application credential, for the admin box's backup cron only.
-# Create it by hand in the Infomaniak console (Identity → Application
-# Credentials) — Keystone forbids an application credential from creating
-# another one, so tofu cannot do this for you.
-variable "backup_credential_id" {
-  type = string
-}
-
-variable "backup_credential_secret" {
+# Tailscale auth key for the admin box. Make it REUSABLE and TAGGED
+# (tailscale admin console → Settings → Keys); tagged nodes never expire, so
+# the box doesn't drop off the tailnet in 90 days while you aren't looking.
+variable "tailscale_auth_key" {
   type      = string
   sensitive = true
 }
 
 variable "gcs_location" {
+  # europe-west1/west4/north1 are GCS's cheapest European tier ($0.020/GB-mo
+  # Standard); europe-west6 (Zurich) is ~25% more for no benefit here.
   type    = string
-  default = "europe-west6"
+  default = "europe-west1"
 }
 
 variable "factory_repo" {

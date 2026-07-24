@@ -1,7 +1,19 @@
 class App < ApplicationRecord
   AGENTS = %w[claude].freeze
-  # "start" is the onboarding route; "factory" prefixes onboarding tmux sessions (factory--<name>)
-  RESERVED_NAMES = %w[apps cable assets rails setup deploy restore new up start factory].freeze
+  # This box hosts one app whose name comes from APPSMOOTHLY_APP (validated below like
+  # any name). "deploy"/"restore" prefix the factory-driven tmux sessions
+  # (<app>--deploy / <app>--restore); "factory" prefixes the onboarding ones.
+  RESERVED_NAMES = %w[cable assets rails deploy restore up start factory].freeze
+
+  # The single app this box runs. Named by APPSMOOTHLY_APP (optional APPSMOOTHLY_APP_TITLE for
+  # display); the row is created on first use and then carries the mutable
+  # state the UI writes — deployed_at, prod/backup config. The repo itself is
+  # cloned onto the box by provisioning (appsmoothly-infra); ready? goes true
+  # once it lands at Factory.projects_dir/<name>.
+  def self.current
+    name = ENV["APPSMOOTHLY_APP"].presence or return nil
+    find_or_create_by!(name:) { |a| a.title = ENV["APPSMOOTHLY_APP_TITLE"].presence; a.agent = AGENTS.first }
+  end
 
   # Users type any title ("My new app"); the technical name (folders, web
   # address, tmux) is derived automatically.
@@ -33,7 +45,7 @@ class App < ApplicationRecord
   # Provisioned boxes (appsmoothly-infra) supply the bucket credentials via env, so backups
   # are on out of the box — no per-app setup, the columns stay a manual override.
   %w[s3_bucket s3_region s3_endpoint s3_access_key_id s3_secret_access_key].each do |column|
-    define_method(column) { super().presence || ENV["RAF_#{column.upcase}"] }
+    define_method(column) { super().presence || ENV["APPSMOOTHLY_#{column.upcase}"] }
   end
 
   def s3_region_or_default = s3_region.presence || "us-east-1"

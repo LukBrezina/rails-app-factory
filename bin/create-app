@@ -1,6 +1,7 @@
 #!/bin/sh
 # Usage: bin/create-app NAME [GIT_URL]
-# Run by the factory inside a visible "<name>--setup" tmux session, cwd = projects dir.
+# Run by box provisioning (appsmoothly-infra) with cwd = projects dir, to lay
+# down the one app this box hosts (App.current adopts it by name = APPSMOOTHLY_APP).
 # Without GIT_URL: produces a vanilla rails+tailwind app that is factory-ready.
 # With GIT_URL: clones an existing app — its config/rails_app_factory.rb tells
 # the factory how to run it (see README: Hooks).

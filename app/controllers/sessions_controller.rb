@@ -1,5 +1,8 @@
-class SessionsController < AppScopedController
+class SessionsController < ApplicationController
   RESERVED_SESSION_NAMES = Session::RESERVED
+
+  # The root landing — sign-in first (as apps#index did before we collapsed to one app).
+  before_action :require_onboarding, only: :index
 
   def index
     @sessions = @app.sessions
@@ -10,7 +13,7 @@ class SessionsController < AppScopedController
   end
 
   def show
-    @name = Factory.safe_name(params[:id]) or return redirect_to(sessions_path(@app))
+    @name = Factory.safe_name(params[:id]) or return redirect_to(sessions_path)
     @sessions = @app.sessions
     @session = @sessions.find { |s| s.name == @name } ||
                Session.new(app: @app, name: @name).tap { |s| @sessions << s }
@@ -23,13 +26,13 @@ class SessionsController < AppScopedController
 
   def create
     prompt = params[:prompt].to_s.strip
-    return redirect_to sessions_path(@app), alert: "Tell Claude what to work on in a few words" if prompt.blank?
-    return redirect_to sessions_path(@app), alert: "#{@app.display_name} is still being built — give it a minute" unless @app.ready?
+    return redirect_to sessions_path, alert: "Tell Claude what to work on in a few words" if prompt.blank?
+    return redirect_to sessions_path, alert: "#{@app.display_name} is still being set up — give it a minute" unless @app.ready?
 
     name = Session.slug_for(@app, prompt)
     Session.create!(app: @app, name:, title: prompt)
     TmuxSession.launch(@app, name, prompt:)
-    redirect_to session_path(@app, name)
+    redirect_to session_path(name)
   end
 
   def destroy
@@ -38,6 +41,6 @@ class SessionsController < AppScopedController
       TmuxSession.kill(@app, name) # kill tmux + teardown hook + remove worktree
       Session.where(app: @app, name:).destroy_all
     end
-    redirect_to sessions_path(@app)
+    redirect_to sessions_path
   end
 end

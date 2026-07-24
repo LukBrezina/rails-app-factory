@@ -26,7 +26,7 @@
     </div>
   <% end %>
 
-  <%= form_with model: @app, url: production_path(@app), method: :patch, class: "border border-line bg-panel clip-tag p-6 mb-6" do |f| %>
+  <%= form_with model: @app, url: production_path, method: :patch, class: "border border-line bg-panel clip-tag p-6 mb-6" do |f| %>
     <div class="text-[10px] tracking-[0.3em] text-faint mb-5">STEP 2 — WHERE YOUR APP WILL LIVE</div>
     <div class="grid grid-cols-2 gap-6">
       <div>
@@ -75,7 +75,7 @@
     <% end %>
 
     <div class="flex items-center gap-4">
-      <%= button_to (@app.deployed_at? ? "PUT THE LATEST VERSION LIVE →" : "GO LIVE →"), deploy_production_path(@app),
+      <%= button_to (@app.deployed_at? ? "PUT THE LATEST VERSION LIVE →" : "GO LIVE →"), deploy_production_path,
             class: "font-medium text-[11px] tracking-[0.16em] px-5 py-2.5 clip-tag cursor-pointer #{@app.deployable? ? "text-bg bg-live hover:brightness-110" : "text-faint bg-panel-2 cursor-not-allowed"}",
             disabled: !@app.deployable?,
             form: { onsubmit: "return confirm('Put #{@app.display_name} live at #{@app.prod_host}?')" } %>

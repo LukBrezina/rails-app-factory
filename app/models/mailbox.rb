@@ -23,19 +23,19 @@ class Mailbox
     m = message.mail
     m.to = to
     m.cc = m.bcc = nil # only the typed address should receive it
-    m.from = ENV["RAF_SMTP_FROM"] if ENV["RAF_SMTP_FROM"].present?
+    m.from = ENV["APPSMOOTHLY_SMTP_FROM"] if ENV["APPSMOOTHLY_SMTP_FROM"].present?
     m.delivery_method :smtp, self.class.smtp_settings
     m.deliver!
     true
   end
 
   class << self
-    def smtp_configured? = ENV["RAF_SMTP_ADDRESS"].present?
+    def smtp_configured? = ENV["APPSMOOTHLY_SMTP_ADDRESS"].present?
 
     def smtp_settings
-      { address: ENV["RAF_SMTP_ADDRESS"], port: (ENV["RAF_SMTP_PORT"].presence || 587).to_i,
-        user_name: ENV["RAF_SMTP_USER_NAME"].presence, password: ENV["RAF_SMTP_PASSWORD"].presence,
-        domain: ENV["RAF_SMTP_DOMAIN"].presence, authentication: :plain, enable_starttls_auto: true }.compact
+      { address: ENV["APPSMOOTHLY_SMTP_ADDRESS"], port: (ENV["APPSMOOTHLY_SMTP_PORT"].presence || 587).to_i,
+        user_name: ENV["APPSMOOTHLY_SMTP_USER_NAME"].presence, password: ENV["APPSMOOTHLY_SMTP_PASSWORD"].presence,
+        domain: ENV["APPSMOOTHLY_SMTP_DOMAIN"].presence, authentication: :plain, enable_starttls_auto: true }.compact
     end
   end
 

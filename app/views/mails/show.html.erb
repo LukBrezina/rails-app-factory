@@ -2,7 +2,7 @@
   <div class="flex items-baseline gap-4 mb-4">
     <h2 class="text-[11px] font-medium tracking-[0.3em] text-dim uppercase">Test inbox · <%= @session %></h2>
     <span class="flex-1 border-t border-line-soft"></span>
-    <a class="text-[11px] text-faint tracking-[0.08em] hover:text-ink whitespace-nowrap" href="<%= session_mails_path(@app, @session) %>">← all emails</a>
+    <a class="text-[11px] text-faint tracking-[0.08em] hover:text-ink whitespace-nowrap" href="<%= session_mails_path(@session) %>">← all emails</a>
   </div>
 
   <article class="border border-line bg-panel clip-tag">
@@ -22,14 +22,14 @@
   <div class="mt-5 border border-line bg-panel-2 clip-tag px-5 py-4">
     <div class="text-[10px] tracking-[0.3em] text-faint mb-3">SEND A COPY TO A REAL INBOX</div>
     <% if Mailbox.smtp_configured? %>
-      <%= form_with url: forward_session_mail_path(@app, @session, @message.id), method: :post, class: "flex gap-2.5 items-end" do %>
+      <%= form_with url: forward_session_mail_path(@session, @message.id), method: :post, class: "flex gap-2.5 items-end" do %>
         <input name="to" type="email" required placeholder="you@example.com" autocomplete="off"
                class="flex-1 min-w-0 bg-transparent border-0 border-b border-line focus:border-live text-strong text-[14px] px-0.5 py-1 placeholder:text-faint outline-none">
         <button class="font-medium text-[11px] tracking-[0.14em] text-bg bg-live hover:brightness-110 px-3.5 py-2 clip-tag cursor-pointer">SEND →</button>
       <% end %>
       <p class="text-[10px] text-faint leading-relaxed mt-2 mb-0">Delivers this exact email to the address you type, using the factory's mail settings.</p>
     <% else %>
-      <p class="text-[11px] text-idle m-0 leading-relaxed">Not set up yet. Add <code>RAF_SMTP_ADDRESS</code>, <code>RAF_SMTP_USER_NAME</code> and <code>RAF_SMTP_PASSWORD</code> (optionally <code>RAF_SMTP_PORT</code>, <code>RAF_SMTP_FROM</code>) to the factory's environment, and a send button appears here.</p>
+      <p class="text-[11px] text-idle m-0 leading-relaxed">Not set up yet. Add <code>APPSMOOTHLY_SMTP_ADDRESS</code>, <code>APPSMOOTHLY_SMTP_USER_NAME</code> and <code>APPSMOOTHLY_SMTP_PASSWORD</code> (optionally <code>APPSMOOTHLY_SMTP_PORT</code>, <code>APPSMOOTHLY_SMTP_FROM</code>) to the factory's environment, and a send button appears here.</p>
     <% end %>
   </div>
 </section>

@@ -16,7 +16,7 @@ class SessionTest < ActiveSupport::TestCase
   test "slug_for falls back for empty or reserved prompts" do
     app = apps(:blog)
     assert_equal "session", Session.slug_for(app, "🎉🎉")
-    assert_equal "session", Session.slug_for(app, "setup")
+    assert_equal "session", Session.slug_for(app, "deploy") # collides with the <app>--deploy ops session
   end
 
   test "for merges rows with live tmux, persists claude titles, wraps ops sessions" do

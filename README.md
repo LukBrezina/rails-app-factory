@@ -1,10 +1,11 @@
 # Appsmoothly
 
 Your Rails PaaS in a box. One `tofu apply` provisions a customer VPS running
-the factory behind Caddy + Authelia (email login, passkeys): create or connect
-Rails apps, drive Claude Code on them in browser terminals (each session in
-its own git worktree with a live preview), then go live on the same box with
-Kamal — with continuous, undeletable S3 backups and point-in-time restore.
+the factory behind Caddy + Authelia (email login, passkeys), hosting one Rails
+app (created or cloned at provisioning time): drive Claude Code on it in
+browser terminals (each session in its own git worktree with a live preview),
+then go live on the same box with Kamal — with continuous, undeletable S3
+backups and point-in-time restore.
 
 Status: dev flow is verified end-to-end locally. Production/backup flow is
 implemented and unit-tested but has not yet run against a real VPS/bucket —
@@ -31,21 +32,22 @@ page to sign Claude and GitHub in from browser terminals. Let people in with
 **Updating**: `cd ~/appsmoothly && bin/update` (pull, migrate, restart).
 
 **Local development of the factory itself**:
-`bin/setup && RAF_PROJECTS_DIR=~/somewhere bin/dev` (or
+`bin/setup && APPSMOOTHLY_PROJECTS_DIR=~/somewhere bin/dev` (or
 `bin/rails tailwindcss:build && bin/rails server` — see gotcha about the
 tailwind watcher below).
 
-### Apps
+### The app
 
-- **+ ADD APP** with just a name runs `rails new <name> --css=tailwind` in a
-  visible tmux session and installs the factory plumbing as the first commit.
-- Give a **git address** instead and the factory clones your existing app.
-  Private GitHub repos work over https once GitHub is connected on the Get
-  started page (`gh auth setup-git` wires git through gh's credentials);
-  other hosts: use the ssh address and add the machine's key (shown on the
-  page) as a deploy key.
-- Type any title ("My new app") — the technical name (`my-new-app`) is
-  derived automatically and used for folders, URLs and tmux.
+Each box hosts exactly one app. Its name comes from `APPSMOOTHLY_APP` (optional
+`APPSMOOTHLY_APP_TITLE` for the display name); provisioning (appsmoothly-infra) runs
+`bin/create-app <name> [git-address]` once to lay it down at
+`<projects>/<name>` — either `rails new <name> --css=tailwind` with the factory
+plumbing as the first commit, or a clone of your existing repo. The factory
+then adopts whatever is there (`App.current`) and everything — sessions, go
+live, backups — targets that one app. There is no app switcher or add-app step
+in the UI. Private GitHub clones work over https once GitHub is connected on
+the Get started page (`gh auth setup-git`); other hosts: use the ssh address
+and add the machine's key as a deploy key.
 
 ### Sessions
 
@@ -59,8 +61,8 @@ committed work stays reachable.
 Emails the test app "sends" are captured to files (they never reach real
 people) and shown in the factory's own style behind the **INBOX** link next to
 TRY IT. To also forward a captured email to a real address from its preview,
-set `RAF_SMTP_ADDRESS`, `RAF_SMTP_USER_NAME`, `RAF_SMTP_PASSWORD` (optionally
-`RAF_SMTP_PORT`, `RAF_SMTP_FROM`) in the factory's `.env` — any SMTP relay.
+set `APPSMOOTHLY_SMTP_ADDRESS`, `APPSMOOTHLY_SMTP_USER_NAME`, `APPSMOOTHLY_SMTP_PASSWORD` (optionally
+`APPSMOOTHLY_SMTP_PORT`, `APPSMOOTHLY_SMTP_FROM`) in the factory's `.env` — any SMTP relay.
 
 ### Hooks — bring your own app
 
@@ -117,7 +119,7 @@ No registry account, no SSH keys — Kamal uses its built-in local registry
 ### Backups
 
 On a provisioned box backups need no setup: the bucket came with the machine
-(`RAF_S3_*` env), streaming starts with the first deploy, and the BACKUPS page
+(`APPSMOOTHLY_S3_*` env), streaming starts with the first deploy, and the BACKUPS page
 is hidden from the menu (still reachable at `/<app>/backups`). Sessions carry
 the `LITESTREAM_*` env, so you can simply ask Claude to list restore points
 (`litestream snapshots`) or rewind (`bin/restore-prod <timestamp>`).
@@ -150,7 +152,12 @@ S3-compatible store works.
 ### Big picture
 
 - The factory is a vanilla Rails 8.1 app (Tailwind v4, importmap, SQLite).
-- **SQLite stores `apps` and `sessions`.** A session row is its identity and
+- **One app per box.** `App.current` (named by `APPSMOOTHLY_APP`) is the single app the
+  factory runs; the row is created on first use and holds the mutable state the
+  UI writes (deployed_at, prod/backup config). Nothing is scoped by app — routes
+  are top-level (`/sessions`, `/production`, `/backups`) and `set_app` in
+  `ApplicationController` hands `@app` to every controller.
+- **SQLite stores the one `app` and its `sessions`.** A session row is its identity and
   lifecycle: it exists until the user ends it. **tmux is the runtime truth**:
   liveness, attached, current command, live title (parsed from
   `tmux list-panes -a` on every request), and PORT (tmux session environment,
@@ -159,24 +166,25 @@ S3-compatible store works.
   `claude --continue`. Row + tmux + teardown hook + worktree are removed
   together, only on explicit kill.
 - Everything long-running happens **inside visible tmux sessions** the browser
-  can attach to: app creation, deploys, restores. One pattern everywhere.
+  can attach to: deploys, restores. One pattern everywhere. (App creation is
+  not factory-driven — provisioning runs `bin/create-app` before the box is
+  handed over.)
 
 ### Naming conventions (load-bearing)
 
 - tmux session name = `<app>--<session>`. Names are validated by
   `/\A\w+(?:-\w+)*\z/` (Factory.safe_name / App validations), which makes a
   literal `--` impossible inside a name, so the split is unambiguous.
-- Users type free-text titles; `App#title` is displayed, `App#name` (slugged
-  via `parameterize`) is used for paths/URLs/tmux. Sessions are created from a
+- The app's name comes from `APPSMOOTHLY_APP`; `App#title` (from `APPSMOOTHLY_APP_TITLE`) is
+  displayed, `App#name` is used for paths/URLs/tmux. Sessions are created from a
   typed task ("What should Claude work on?"): `Session.slug_for` derives the
   stable slug (≤6 words, ≤48 chars, uniqued), the task becomes Claude's
   initial prompt, and Claude's own terminal title (OSC → `pane_title`)
   becomes the display name, persisted to the row as it changes.
-- Reserved session names (`Session::RESERVED`): `setup` (app creation),
-  `deploy`, `restore` — tmux sessions the factory drives. They get no rows;
-  the session list wraps them as unsaved `Session`s while they run. Reserved
-  app names: see `App::RESERVED_NAMES` (route
-  collisions; `factory` is reserved because onboarding uses
+- Reserved session names (`Session::RESERVED`): `deploy`, `restore` — tmux
+  sessions the factory drives. They get no rows; the session list wraps them as
+  unsaved `Session`s while they run. Reserved app names: see
+  `App::RESERVED_NAMES` (`factory` is reserved because onboarding uses
   `factory--claude-login`/`factory--github-login` tmux sessions).
 - Worktrees live at `<projects>/.worktrees/<app>--<session>` on branch
   `raf/<session>`. Removal keeps the branch.
@@ -185,7 +193,7 @@ S3-compatible store works.
 
 | file | role |
 |---|---|
-| `app/models/app.rb` | AR model; title→name derivation, prod/backup config columns, `s3_env`/`litestream_env` |
+| `app/models/app.rb` | AR model; `App.current` (the one app, from `APPSMOOTHLY_APP`), prod/backup config columns, `s3_env`/`litestream_env` |
 | `app/models/session.rb` | AR model; session identity/lifecycle, prompt→slug, merges rows with live tmux (`Session.for`), persists Claude's titles |
 | `app/models/tmux_session.rb` | PORO, the runtime half; list/launch/kill tmux sessions, tmux styling (mouse on + pastel status bar), worktree paths |
 | `app/models/production.rb` | writes `config/deploy.yml` + `.kamal/secrets` into the app repo, commits, runs kamal in `<app>--deploy` |
@@ -194,10 +202,10 @@ S3-compatible store works.
 | `app/models/onboarding.rb` | Get started page (`/start`): checks Claude/gh sign-in, launches `factory--claude-login`/`factory--github-login` tmux sessions for the browser-terminal logins |
 | `app/channels/terminal_channel.rb` | PTY ↔ ActionCable bridge (`tmux attach`), base64 frames, signed-token auth |
 | `bin/hook` | plain-Ruby hook runner (setup/server/teardown DSL) — executed with the *app's* Ruby, keep it old-Ruby-compatible |
-| `bin/create-app` | runs in `<app>--setup` tmux: `rails new` + plumbing, or `git clone` for connected apps |
+| `bin/create-app` | provisioning-time tool (run by appsmoothly-infra, not the UI): `rails new` + plumbing, or `git clone` for connected apps |
 | `bin/update` | update a running factory in place (pull, migrate, rebuild, restart) |
 | `lib/factory.rb` | projects dir, safe_name, free_port, tailscale DNS name, message verifier, `clean_tmux!` |
-| `app/views/layouts/application.html.erb` | header app switcher, sidebar, flash, 4s JSON poll |
+| `app/views/layouts/application.html.erb` | header app-name label, sidebar, flash, 4s JSON poll |
 | `app/assets/tailwind/application.css` | design tokens (`@theme`) + the few custom pieces (clip-tag, dots, cmd chips) |
 
 ### Session lifecycle
@@ -206,7 +214,7 @@ Create (`sessions#create`): slug the typed task → `Session` row →
 `TmuxSession.launch(app, name, prompt:)`: pick a free port (bind :0, close) →
 `git worktree add -b raf/<name>` (falls back to reattach if the branch
 exists) → `Factory.clean_tmux!` → `tmux new-session -d` with env `PORT`,
-`BINDING=0.0.0.0`, `RAF_APP`, `RAF_SESSION` (+ `S3_*` when backups are
+`BINDING=0.0.0.0`, `APPSMOOTHLY_APP`, `APPSMOOTHLY_SESSION` (+ `S3_*` when backups are
 configured) → window 0 "claude" runs the agent with the task as its prompt,
 window 1 "server" runs `bin/hook setup server`.
 
@@ -217,7 +225,7 @@ tmux restarts there and `claude --continue` picks the conversation back up
 unpersisted names — a typo URL must not create workspaces.
 
 Kill (`sessions#destroy`): `TmuxSession.kill` (read PORT from tmux env → kill
-session → run `bin/hook teardown` synchronously (chdir worktree, RAF_* env) →
+session → run `bin/hook teardown` synchronously (chdir worktree, APPSMOOTHLY_* env) →
 `git worktree remove --force`) → delete the row. Works the same when tmux is
 already gone.
 

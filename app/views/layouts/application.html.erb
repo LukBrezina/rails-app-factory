@@ -19,14 +19,9 @@
   <body class="h-dvh flex flex-col bg-bg text-ink font-mono text-[13px] leading-relaxed antialiased">
     <header class="flex items-center gap-7 px-7 py-3.5 border-b border-line bg-linear-to-b from-panel to-transparent shrink-0">
       <a class="font-serif italic font-semibold text-[21px] text-strong tracking-tight" href="<%= root_path %>">Appsmoothly</a>
-      <nav class="flex items-center gap-2 overflow-x-auto">
-        <% App.order(:created_at).each do |a| %>
-          <a href="<%= sessions_path(a) %>"
-             class="px-3 py-1 text-[11px] tracking-[0.12em] border clip-tag whitespace-nowrap transition-colors
-                    <%= a == @app ? "border-strong/40 text-strong bg-panel-2" : "border-line text-dim hover:text-ink hover:bg-panel" %>"><%= a.display_name %></a>
-        <% end %>
-        <a href="<%= new_app_path %>" class="px-2.5 py-1 text-[11px] tracking-[0.12em] border border-dashed border-line text-faint hover:text-live hover:border-live/40 whitespace-nowrap">+ ADD APP</a>
-      </nav>
+      <% if @app&.persisted? %>
+        <span class="px-3 py-1 text-[11px] tracking-[0.12em] border border-strong/40 text-strong bg-panel-2 clip-tag whitespace-nowrap"><%= @app.display_name %></span>
+      <% end %>
       <span class="ml-auto text-[11px] text-faint tracking-[0.08em] hidden sm:block"><%= Socket.gethostname %></span>
     </header>
 
@@ -42,9 +37,9 @@
           <div class="text-[10px] tracking-[0.3em] text-faint mb-3">MENU</div>
           <%# provisioned boxes: backups run out of the box and rewinds go through
               Claude — the page stays reachable by URL for the admin %>
-          <% [["SESSIONS", sessions_path(@app), "sessions"],
-              ["GO LIVE", production_path(@app), "productions"],
-              (["BACKUPS", backups_path(@app), "backups"] unless Factory.domain)].compact.each do |label, path, ctrl| %>
+          <% [["SESSIONS", sessions_path, "sessions"],
+              ["GO LIVE", production_path, "productions"],
+              (["BACKUPS", backups_path, "backups"] unless Factory.domain)].compact.each do |label, path, ctrl| %>
             <a class="block px-3 py-2 mb-1 text-[11px] tracking-[0.16em] border-l-2
                       <%= controller_name == ctrl ? "text-live border-live bg-panel" : "text-dim border-transparent hover:text-ink" %>"
                href="<%= path %>"><%= label %></a>
@@ -62,7 +57,7 @@
         const tagged = () => document.querySelectorAll("[data-session-name]")
         if (tagged().length) setInterval(async () => {
           try {
-            const list = await (await fetch("<%= sessions_path(@app, format: :json) %>")).json()
+            const list = await (await fetch("<%= sessions_path(format: :json) %>")).json()
             const by = Object.fromEntries(list.map(s => [s.name, s]))
             tagged().forEach(el => {
               const s = by[el.dataset.sessionName]

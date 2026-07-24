@@ -15,7 +15,7 @@ class HookRunnerTest < ActiveSupport::TestCase
           File.write("gone.txt", "bye")
         end
       RUBY
-      env = { "RAF_APP" => "shop", "RAF_SESSION" => "checkout", "PORT" => "4001" }
+      env = { "APPSMOOTHLY_APP" => "shop", "APPSMOOTHLY_SESSION" => "checkout", "PORT" => "4001" }
       assert system(env, RUNNER, "setup", chdir: dir), "setup hook should succeed"
       assert_equal "shop-checkout-4001", File.read(File.join(dir, "touched.txt"))
       assert system(env, RUNNER, "teardown", chdir: dir)

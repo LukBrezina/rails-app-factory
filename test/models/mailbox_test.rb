@@ -4,14 +4,14 @@ require "tmpdir"
 class MailboxTest < ActiveSupport::TestCase
   setup do
     @root = Dir.mktmpdir
-    ENV["RAF_PROJECTS_DIR"] = @root
+    ENV["APPSMOOTHLY_PROJECTS_DIR"] = @root
     @maildir = File.join(@root, ".worktrees", "blog--inbox", "tmp", "mails")
     FileUtils.mkdir_p(@maildir)
   end
 
   teardown do
     FileUtils.remove_entry(@root)
-    ENV.delete("RAF_PROJECTS_DIR")
+    ENV.delete("APPSMOOTHLY_PROJECTS_DIR")
   end
 
   def write_mail(name, &block) = File.write(File.join(@maildir, name), Mail.new(&block).encoded)

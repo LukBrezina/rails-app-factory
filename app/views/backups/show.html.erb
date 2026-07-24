@@ -12,7 +12,7 @@
     even with stolen passwords.
   </p>
 
-  <% unless ENV["RAF_S3_BUCKET"].present? # provisioned boxes: storage came with the machine %>
+  <% unless ENV["APPSMOOTHLY_S3_BUCKET"].present? # provisioned boxes: storage came with the machine %>
   <div class="border border-line bg-panel clip-tag p-6 mb-6 text-[11px] text-dim leading-relaxed">
     <details open>
       <summary class="cursor-pointer text-idle tracking-[0.08em]">SET UP THE STORAGE (GOOGLE CLOUD) — ONCE PER APP, ~5 MINUTES</summary>
@@ -31,7 +31,7 @@
     </details>
   </div>
 
-  <%= form_with model: @app, url: backups_path(@app), method: :patch, class: "border border-line bg-panel clip-tag p-6 mb-6" do |f| %>
+  <%= form_with model: @app, url: backups_path, method: :patch, class: "border border-line bg-panel clip-tag p-6 mb-6" do |f| %>
     <div class="text-[10px] tracking-[0.3em] text-faint mb-5">STORAGE KEYS</div>
     <div class="grid grid-cols-2 gap-x-6 gap-y-5">
       <% { s3_bucket: "myapp-backups", s3_region: "auto", s3_endpoint: "https://storage.googleapis.com",
@@ -62,7 +62,7 @@
         data goes back to exactly that second. Nothing is lost — even the rewound-away part stays
         in the backup history.
       </p>
-      <%= form_with url: backups_restore_path(@app), method: :post, class: "flex items-end gap-4" do %>
+      <%= form_with url: backups_restore_path, method: :post, class: "flex items-end gap-4" do %>
         <div>
           <label class="block text-[10px] tracking-[0.2em] text-faint mb-1">DATE &amp; TIME (UTC)</label>
           <input type="datetime-local" name="timestamp" required step="1"
@@ -84,7 +84,7 @@
           <div class="flex items-center gap-3 py-1.5 border-b border-line-soft last:border-0">
             <span class="dot" data-state="<%= s.attached? ? "live" : "idle" %>"></span>
             <span class="flex-1 text-[13px] font-medium text-strong"><%= s.name %></span>
-            <%= button_to "COPY LIVE DATA HERE →", backups_pull_path(@app, s.name), method: :post,
+            <%= button_to "COPY LIVE DATA HERE →", backups_pull_path(s.name), method: :post,
                   class: "text-[10px] tracking-[0.14em] text-idle border border-idle/40 px-3 py-1.5 clip-tag hover:bg-idle/10 cursor-pointer bg-transparent",
                   form: { class: "contents" } %>
           </div>

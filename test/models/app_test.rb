@@ -15,8 +15,25 @@ class AppTest < ActiveSupport::TestCase
   end
 
   test "rejects reserved names and unknown agents" do
-    assert_not App.new(name: "apps", agent: "claude").valid?
+    assert_not App.new(name: "deploy", agent: "claude").valid?
     assert_not App.new(name: "blog", agent: "copilot").valid?
+  end
+
+  test "current is the one app named by APPSMOOTHLY_APP" do
+    ENV["APPSMOOTHLY_APP"] = "acme-shop"
+    ENV["APPSMOOTHLY_APP_TITLE"] = "Acme Shop"
+    app = App.current
+    assert_equal "acme-shop", app.name
+    assert_equal "Acme Shop", app.display_name
+    assert_equal app, App.current # same row on the next call
+  ensure
+    ENV.delete("APPSMOOTHLY_APP")
+    ENV.delete("APPSMOOTHLY_APP_TITLE")
+  end
+
+  test "current is nil without APPSMOOTHLY_APP" do
+    ENV.delete("APPSMOOTHLY_APP")
+    assert_nil App.current
   end
 end
 

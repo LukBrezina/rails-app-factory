@@ -68,14 +68,13 @@
   <% elsif @onboarding.done? %>
     <div class="border border-dashed border-live/40 clip-tag p-6 text-center">
       <p class="m-0 mb-4 text-[13px] text-live">All set — your factory is ready.</p>
-      <a href="<%= new_app_path %>" class="font-medium text-[11px] tracking-[0.16em] text-bg bg-live hover:brightness-110 px-5 py-2.5 clip-tag">ADD YOUR FIRST APP →</a>
+      <a href="<%= root_path %>" class="font-medium text-[11px] tracking-[0.16em] text-bg bg-live hover:brightness-110 px-5 py-2.5 clip-tag">GO TO YOUR APP →</a>
     </div>
   <% end %>
 
   <% unless @onboarding.done? %>
     <p class="mt-auto pt-6 text-right">
-      <% first_app = App.order(:created_at).first %>
-      <a class="text-[11px] text-faint hover:text-dim" href="<%= first_app ? sessions_path(first_app) : new_app_path %>">skip for now →</a>
+      <a class="text-[11px] text-faint hover:text-dim" href="<%= root_path %>">skip for now →</a>
     </p>
   <% end %>
 </section>

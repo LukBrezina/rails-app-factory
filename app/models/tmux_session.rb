@@ -42,7 +42,7 @@ class TmuxSession
       system("git", "-C", app.path, "worktree", "add", "-b", "raf/#{name}", worktree) ||
         system("git", "-C", app.path, "worktree", "add", worktree, "raf/#{name}") # branch exists → reattach
       Factory.clean_tmux!
-      env = { "PORT" => port.to_s, "BINDING" => "0.0.0.0", "RAF_APP" => app.name, "RAF_SESSION" => name }
+      env = { "PORT" => port.to_s, "BINDING" => "0.0.0.0", "APPSMOOTHLY_APP" => app.name, "APPSMOOTHLY_SESSION" => name }
       # S3_*: a pulled prod DB serves its attachments in dev. LITESTREAM_*: Claude
       # can list restore points and run bin/restore-prod / bin/pull-prod-data itself.
       env.merge!(app.s3_env, app.litestream_env) if app.backups_configured?
@@ -56,17 +56,6 @@ class TmuxSession
       system("tmux", "send-keys", "-t", "#{full}:server", "'#{HOOK_RUNNER}' setup server", "Enter")
     end
 
-    # `rails new` runs visibly inside a "<app>--setup" session the user can watch.
-    def launch_setup(app)
-      FileUtils.mkdir_p(Factory.projects_dir)
-      Factory.clean_tmux!
-      system("tmux", "new-session", "-d", "-s", "#{app.name}--setup", "-c", Factory.projects_dir)
-      style("#{app.name}--setup")
-      command = "'#{Rails.root.join("bin/create-app")}' '#{app.name}'"
-      command << " '#{app.repo_url}'" if app.repo_url.present? # validated: no spaces or quotes
-      system("tmux", "send-keys", "-t", "#{app.name}--setup", command, "Enter")
-    end
-
     def kill(app, name)
       full = "#{app.name}--#{name}"
       port = `tmux show-environment -t '#{full}' PORT 2>/dev/null`[/PORT=(\d+)/, 1]
@@ -74,7 +63,7 @@ class TmuxSession
       worktree = worktree_path(full)
       return unless File.directory?(worktree)
 
-      env = { "RAF_APP" => app.name, "RAF_SESSION" => name }
+      env = { "APPSMOOTHLY_APP" => app.name, "APPSMOOTHLY_SESSION" => name }
       env["PORT"] = port if port
       # ponytail: synchronous — keep teardown hooks quick (drop a DB, stop a service)
       system(env, HOOK_RUNNER, "teardown", chdir: worktree)
@@ -97,7 +86,6 @@ class TmuxSession
   end
 
   def tmux_name = "#{app.name}--#{name}"
-  def setup? = name == "setup"
   def claude? = command == app.agent || command.match?(/\A\d+(\.\d+)+\z/) # claude's process title is its version number
   def display_command = claude? ? app.agent : command
 

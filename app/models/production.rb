@@ -14,7 +14,7 @@ module Production
     app.update!(deployed_at: Time.current)
   end
 
-  # Behind the box's own Caddy (RAF_DOMAIN set) kamal-proxy must leave 80/443
+  # Behind the box's own Caddy (APPSMOOTHLY_DOMAIN set) kamal-proxy must leave 80/443
   # to Caddy — pin it to loopback:8080 once, before the first boot.
   BOOT_CONFIG = "bin/kamal proxy boot_config set --publish-host-ip 127.0.0.1 --http-port 8080 --https-port 8443"
 
@@ -44,9 +44,9 @@ module Production
 
   # Provisioned boxes carry a per-customer SMTP credential (Mailgun, via appsmoothly-infra).
   def smtp_clear_env
-    return {} if ENV["RAF_SMTP_ADDRESS"].blank?
-    { "SMTP_ADDRESS" => ENV["RAF_SMTP_ADDRESS"], "SMTP_PORT" => ENV.fetch("RAF_SMTP_PORT", "587"),
-      "SMTP_USER_NAME" => ENV["RAF_SMTP_USER_NAME"], "SMTP_FROM" => ENV["RAF_SMTP_FROM"] }
+    return {} if ENV["APPSMOOTHLY_SMTP_ADDRESS"].blank?
+    { "SMTP_ADDRESS" => ENV["APPSMOOTHLY_SMTP_ADDRESS"], "SMTP_PORT" => ENV.fetch("APPSMOOTHLY_SMTP_PORT", "587"),
+      "SMTP_USER_NAME" => ENV["APPSMOOTHLY_SMTP_USER_NAME"], "SMTP_FROM" => ENV["APPSMOOTHLY_SMTP_FROM"] }
   end
 
   def deploy_yaml(app)
@@ -110,7 +110,7 @@ module Production
 
   def env_flags(app)
     env = app.backups_configured? ? app.s3_env : {}
-    env = env.merge("SMTP_PASSWORD" => ENV["RAF_SMTP_PASSWORD"].to_s) if smtp_clear_env.any?
+    env = env.merge("SMTP_PASSWORD" => ENV["APPSMOOTHLY_SMTP_PASSWORD"].to_s) if smtp_clear_env.any?
     env.flat_map { |key, value| ["-e", "#{key}=#{value}"] }
   end
 end

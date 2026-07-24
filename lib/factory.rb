@@ -8,7 +8,7 @@ module Factory
 
   module_function
 
-  def projects_dir = File.expand_path(ENV.fetch("RAF_PROJECTS_DIR", "~/projects"))
+  def projects_dir = File.expand_path(ENV.fetch("APPSMOOTHLY_PROJECTS_DIR", "~/projects"))
   def worktrees_dir = File.join(projects_dir, ".worktrees")
 
   def safe_name(str)
@@ -24,7 +24,7 @@ module Factory
   # Set on provisioned customer boxes (e.g. "acme.appsmoothly.com") — the factory
   # then runs behind Caddy/Authelia: previews become p-<port>.<domain> and
   # deploys target this same box (see Production).
-  def domain = ENV["RAF_DOMAIN"].presence
+  def domain = ENV["APPSMOOTHLY_DOMAIN"].presence
 
   def preview_host
     @preview_host ||= JSON.parse(`tailscale status --json 2>/dev/null`).dig("Self", "DNSName").to_s.delete_suffix(".").presence

@@ -3,32 +3,34 @@ require "tmpdir"
 
 class SessionsControllerTest < ActionDispatch::IntegrationTest
   setup do
-    @app = apps(:blog)
+    ENV["APPSMOOTHLY_APP"] = "blog" # the one app this box hosts; the controller adopts it via App.current
+    @app = apps(:blog)      # same row App.current finds by name
     @root = Dir.mktmpdir
-    ENV["RAF_PROJECTS_DIR"] = @root
+    ENV["APPSMOOTHLY_PROJECTS_DIR"] = @root
     FileUtils.mkdir_p(File.join(@root, "blog", ".git")) # @app.ready?
   end
 
   teardown do
     FileUtils.remove_entry(@root)
-    ENV.delete("RAF_PROJECTS_DIR")
+    ENV.delete("APPSMOOTHLY_PROJECTS_DIR")
+    ENV.delete("APPSMOOTHLY_APP")
   end
 
   test "create slugs the prompt into a row and hands it to claude" do
     launched = nil
     TmuxSession.stub :launch, ->(app, name, **opts) { launched = [app.name, name, opts] } do
-      post sessions_path(@app), params: { prompt: "Fix the CSV export bug" }
+      post sessions_path, params: { prompt: "Fix the CSV export bug" }
     end
-    assert_redirected_to session_path(@app, "fix-the-csv-export-bug")
+    assert_redirected_to session_path("fix-the-csv-export-bug")
     assert Session.exists?(app: @app, name: "fix-the-csv-export-bug")
     assert_equal ["blog", "fix-the-csv-export-bug", { prompt: "Fix the CSV export bug" }], launched
   end
 
   test "create with a blank prompt bounces with an alert" do
     TmuxSession.stub :launch, ->(*) { flunk "must not launch" } do
-      post sessions_path(@app), params: { prompt: "   " }
+      post sessions_path, params: { prompt: "   " }
     end
-    assert_redirected_to sessions_path(@app)
+    assert_redirected_to sessions_path
     assert_equal 0, Session.count
   end
 
@@ -36,7 +38,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     Session.create!(app: @app, name: "old-work", title: "old")
     killed = nil
     TmuxSession.stub :kill, ->(_app, name) { killed = name } do
-      delete session_path(@app, "old-work")
+      delete session_path("old-work")
     end
     assert_equal "old-work", killed
     assert_not Session.exists?(app: @app, name: "old-work")
@@ -47,7 +49,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     args = nil
     TmuxSession.stub :for, [] do
       TmuxSession.stub :launch, ->(_app, name, **opts) { args = [name, opts] } do
-        get session_path(@app, "old-work")
+        get session_path("old-work")
       end
     end
     assert_response :success
@@ -57,7 +59,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
   test "show of an unknown name never creates a workspace" do
     TmuxSession.stub :for, [] do
       TmuxSession.stub :launch, ->(*) { flunk "must not launch" } do
-        get session_path(@app, "typo-name")
+        get session_path("typo-name")
       end
     end
     assert_response :success

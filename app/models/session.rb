@@ -3,9 +3,9 @@
 # a name, and removed only on explicit kill — a reboot just puts the session
 # to sleep (tmux gone, row and worktree stay; opening it wakes Claude back up).
 class Session < ApplicationRecord
-  # Factory-driven operations (app creation, go live, rewind) stay tmux-only —
-  # they appear in the list as unsaved rows and vanish when their tmux ends.
-  RESERVED = %w[setup deploy restore].freeze
+  # Factory-driven operations (go live, rewind) stay tmux-only — they appear in
+  # the list as unsaved rows and vanish when their tmux ends.
+  RESERVED = %w[deploy restore].freeze
 
   belongs_to :app
 

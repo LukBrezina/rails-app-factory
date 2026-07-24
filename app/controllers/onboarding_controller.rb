@@ -1,4 +1,7 @@
 class OnboardingController < ApplicationController
+  # The sign-in page must work before the app is configured/ready.
+  skip_before_action :set_app
+
   def show
     @onboarding = Onboarding.new
     @onboarding.tidy!

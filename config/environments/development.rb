@@ -83,8 +83,8 @@ Rails.application.configure do
 
   # On a provisioned customer box the factory sits behind Caddy/Authelia at
   # terminal.<domain>; allow that host and its origin for the terminal cable.
-  if ENV["RAF_DOMAIN"].present?
-    config.hosts << "terminal.#{ENV["RAF_DOMAIN"]}"
-    config.action_cable.allowed_request_origins = ["https://terminal.#{ENV["RAF_DOMAIN"]}"]
+  if ENV["APPSMOOTHLY_DOMAIN"].present?
+    config.hosts << "terminal.#{ENV["APPSMOOTHLY_DOMAIN"]}"
+    config.action_cable.allowed_request_origins = ["https://terminal.#{ENV["APPSMOOTHLY_DOMAIN"]}"]
   end
 end

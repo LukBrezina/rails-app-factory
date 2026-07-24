@@ -1,0 +1,53 @@
+#!/bin/sh
+# 5-minute proof: does claude's built-in /voice hear a VIRTUAL microphone?
+#
+# On a headless box claude's /voice has no real mic. This stands up a fake one
+# (a PulseAudio pipe-source backed by a FIFO), makes it the default input, and
+# feeds speech into it. If /voice transcribes the sentence, the whole
+# browser->box audio bridge is worth building. If it hears nothing, claude's
+# capture ignores the virtual device and we go with self-hosted Whisper instead.
+#
+# Run this ON THE BOX, as the same user claude runs as (NOT root).
+set -e
+FIFO=/tmp/asm-mic
+SOURCE=asmvirtmic
+
+for c in pactl sox espeak-ng; do
+  command -v "$c" >/dev/null 2>&1 || missing="$missing $c"
+done
+if [ -n "$missing" ]; then
+  echo "Missing tools:$missing"
+  echo "Install:  sudo apt-get update && sudo apt-get install -y pulseaudio pulseaudio-utils sox espeak-ng"
+  exit 1
+fi
+
+# make sure a per-user PulseAudio/PipeWire-pulse daemon is reachable
+if ! pactl info >/dev/null 2>&1; then
+  pulseaudio --start --exit-idle-time=-1 2>/dev/null || true
+fi
+if ! pactl info >/dev/null 2>&1; then
+  echo "No PulseAudio for this user. Run as a normal (non-root) user with a login"
+  echo "session, or set XDG_RUNTIME_DIR. This headless-audio friction is exactly"
+  echo "the risk I flagged — if you can't get a daemon up, use the Whisper path."
+  exit 1
+fi
+
+# (re)create the virtual mic and make it the default input device
+pactl list short sources 2>/dev/null | grep -q "$SOURCE" || \
+  pactl load-module module-pipe-source source_name=$SOURCE file=$FIFO \
+        format=s16le rate=16000 channels=1 >/dev/null
+pactl set-default-source $SOURCE
+echo "=> virtual mic '$SOURCE' is now the default input (FIFO: $FIFO)"
+
+# a speech clip to pump through it
+espeak-ng "hello claude, this is a virtual microphone test, can you hear me clearly" \
+  -w /tmp/asm-sample.wav 2>/dev/null
+echo "=> generated /tmp/asm-sample.wav"
+echo
+echo "NEXT: in ANOTHER terminal, open a claude session and start voice input (/voice)."
+echo "Then come back here and press Enter to start feeding speech into the mic."
+printf "Ready? press Enter... "
+read _
+echo "=> looping the sentence into the virtual mic in real time. Watch claude's"
+echo "   transcription. Ctrl-C when you've seen the result."
+while :; do sox /tmp/asm-sample.wav -t raw -r 16000 -e signed -b 16 -c 1 - ; done > "$FIFO"

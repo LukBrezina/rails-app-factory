@@ -15,10 +15,12 @@ module Mic
 
   # Is a PulseAudio (or PipeWire-pulse) daemon reachable for this user?
   def available? = system("pactl", "info", out: File::NULL, err: File::NULL)
+  def start! = system("pulseaudio", "--start", "--exit-idle-time=-1", out: File::NULL, err: File::NULL)
 
   # Idempotently create the virtual mic and make it the default input.
   # Returns false when there's no audio server (e.g. local dev on a Mac).
   def ensure!
+    start! unless available?
     return false unless available?
     unless `pactl list short sources 2>/dev/null`.include?(SOURCE)
       system("pactl", "load-module", "module-pipe-source", "source_name=#{SOURCE}",

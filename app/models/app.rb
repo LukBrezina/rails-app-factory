@@ -38,6 +38,21 @@ class App < ApplicationRecord
   def ready? = File.directory?(File.join(path, ".git"))
   def sessions = Session.for(self)
 
+  # A fresh box may have no app repo yet. Rather than dead-ending on "still
+  # setting up", start an empty git repo so a session (worktree) can launch and
+  # claude can build the app in it. Skips a dir that already has files — e.g. a
+  # provisioning clone still in flight — so we never clobber real work.
+  def ensure_repo!
+    return true if ready?
+    return false if Dir.exist?(path) && !Dir.empty?(path)
+
+    FileUtils.mkdir_p(path)
+    system("git", "-C", path, "init", "-q") &&
+      system("git", "-C", path, "-c", "user.email=box@appsmoothly.local", "-c", "user.name=appsmoothly",
+             "commit", "-q", "--allow-empty", "-m", "Start #{name} (appsmoothly)")
+    ready?
+  end
+
   # production / backups readiness — kamal uses its local registry, no external creds
   def deployable? = ready? && prod_server.present? && prod_host.present?
   def backups_configured? = s3_bucket.present? && s3_access_key_id.present? && s3_secret_access_key.present?

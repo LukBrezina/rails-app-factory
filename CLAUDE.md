@@ -39,11 +39,23 @@ padding, tailwind-watcher TTY). Don't undo those without reading why.
   config/claude-settings.json` (light theme, `/voice`, auto-approve) and each
   worktree is pre-trusted (`Factory.trust!`) — never edits the box's global
   claude config.
+- Voice on a headless box: the browser streams mic audio (16 kHz mono PCM) over
+  `MicChannel` into a PulseAudio pipe-source (`Mic`, the default input), so
+  claude's own `/voice` records it and transcribes with Anthropic's model. The
+  🎤 button opens the mic; the user then runs `/voice`. **Provisioning
+  (appsmoothly-infra) must install `pulseaudio pulseaudio-utils sox` and run a
+  per-user pulse daemon (`--exit-idle-time=-1`)** — the factory only creates the
+  virtual source. `bin/mic-proof` is the box-side sanity check. Proven with the
+  shared default source; per-session `PULSE_SOURCE` is the upgrade path.
 - `bin/hook` executes under each app's own Ruby — keep its syntax
   old-Ruby-compatible.
 - All UI copy targets someone who never coded: deploy→"go live",
   restore→"rewind", worktree→"private workspace", attached→"open in a browser".
 - Long-running work (deploy, rollback) runs in visible tmux sessions named
   `<app>--deploy/rollback` — keep that pattern for new features. Rollback does
-  `git reset --hard <sha>` → deploy → `bin/restore-prod <commit time>`. (App
-  creation is no longer factory-driven; it happens at provisioning time.)
+  `git reset --hard <sha>` → deploy → `bin/restore-prod <commit time>`.
+- App repo: provisioning (appsmoothly-infra) normally clones it in. But an
+  *empty* box no longer dead-ends — `App#ensure_repo!` bootstraps an empty git
+  repo (so a worktree/session can launch and claude can build the app) rather
+  than showing "still setting up". It refuses to touch a dir that already has
+  files, so an in-flight clone is never clobbered.

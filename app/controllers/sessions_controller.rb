@@ -14,10 +14,10 @@ class SessionsController < ApplicationController
         first = @sessions.reject { |s| RESERVED_SESSION_NAMES.include?(s.name) }.first
         if first
           redirect_to session_path(first.name)
-        elsif @app.ready?
+        elsif @app.ensure_repo!
           redirect_to(session_path(start_session))
         end
-        # else: not ready yet — render the "still setting up" placeholder
+        # else: app dir is mid-setup (has files, no repo) — render the placeholder
       end
     end
   end
@@ -36,7 +36,7 @@ class SessionsController < ApplicationController
 
   # A new tab: blank (just opens claude) or seeded with a typed task.
   def create
-    return redirect_to root_path, alert: "#{@app.display_name} is still being set up — give it a minute" unless @app.ready?
+    return redirect_to root_path, alert: "#{@app.display_name} is still being set up — give it a minute" unless @app.ensure_repo!
     redirect_to session_path(start_session(params[:prompt].to_s.strip))
   end
 

@@ -29,7 +29,8 @@
   term.open(document.getElementById("terminal"))
   fit.fit()
 
-  const sub = createConsumer().subscriptions.create(
+  const consumer = createConsumer()
+  const sub = consumer.subscriptions.create(
     { channel: "TerminalChannel", token: <%= token.to_json.html_safe %> },
     {
       connected() { this.perform("resize", { rows: term.rows, cols: term.cols }) },
@@ -70,33 +71,57 @@
     }
   })
 
-  // Voice = dictate in the browser (where you and the mic are) and type the
-  // words straight into the terminal. Works even when claude runs on a headless
-  // box, where its own /voice can't reach a microphone. Chrome/Edge only; the
-  // button hides itself otherwise. Note: Chrome sends the audio to Google's
-  // speech service for transcription.
+  // Voice: stream the browser mic into the box's virtual microphone (MicChannel
+  // → PulseAudio pipe-source), so claude's OWN /voice records it and transcribes
+  // with Anthropic's model. Click 🎤 → it types /voice for you and arms the mic;
+  // then HOLD SPACE to talk (matches claude's push-to-talk) and audio is sent
+  // ONLY while Space is held. Click 🎤 again to leave voice mode.
   const mic = document.getElementById("mic")
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition
-  if (mic && SR) {
+  if (mic && navigator.mediaDevices?.getUserMedia && (window.AudioContext || window.webkitAudioContext)) {
     mic.hidden = false
-    const rec = new SR()
-    rec.continuous = true
-    rec.interimResults = false
-    rec.lang = navigator.language || "en-US"
-    let on = false
-    rec.onresult = e => {
-      const text = Array.from(e.results).slice(e.resultIndex)
-        .filter(r => r.isFinal).map(r => r[0].transcript).join("").trim()
-      if (text) sub.perform("input", { data: text + " " })
+    let stream, ctx, node, gain, armed = false, sending = false
+    const disarm = () => {
+      if (armed) sub.perform("input", { data: "\x1b" })      // Esc: leave claude's voice mode
+      armed = sending = false; mic.dataset.on = "false"
+      try { node?.disconnect(); gain?.disconnect(); ctx?.close() } catch {}
+      stream?.getTracks().forEach(t => t.stop())
+      stream = ctx = node = gain = null
     }
-    rec.onend = () => { if (on) try { rec.start() } catch {} } // Chrome stops on silence — resume until toggled off
-    rec.onerror = ev => { if (ev.error === "not-allowed") { on = false; mic.dataset.on = "false" } }
-    mic.addEventListener("click", () => {
-      on = !on
-      mic.dataset.on = String(on)
-      if (on) { try { rec.start() } catch {} } else rec.stop()
-      term.focus()
-    })
+    const arm = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } })
+      } catch { return } // mic denied
+      try {
+        ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 })
+        const src = ctx.createMediaStreamSource(stream)
+        node = ctx.createScriptProcessor(4096, 1, 1)         // deprecated but universal; no worklet asset
+        node.onaudioprocess = e => {
+          if (!sending) return                               // only while Space is held
+          const f = e.inputBuffer.getChannelData(0)          // Float32 @16kHz mono
+          const pcm = new Int16Array(f.length)               // → s16le for PulseAudio
+          for (let i = 0; i < f.length; i++) pcm[i] = Math.max(-32768, Math.min(32767, f[i] < 0 ? f[i] * 0x8000 : f[i] * 0x7fff))
+          const bytes = new Uint8Array(pcm.buffer)
+          let bin = ""
+          for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+          micSub.perform("chunk", { data: btoa(bin) })
+        }
+        gain = ctx.createGain(); gain.gain.value = 0         // silent sink so onaudioprocess fires
+        src.connect(node); node.connect(gain); gain.connect(ctx.destination)
+        armed = true; mic.dataset.on = "true"
+        sub.perform("input", { data: "/voice\r" })           // enter claude's voice mode for you
+        term.focus()
+      } catch { disarm() }
+    }
+    const micSub = consumer.subscriptions.create(
+      { channel: "MicChannel", token: <%= token.to_json.html_safe %> },
+      { rejected() { disarm(); mic.title = "Voice needs the box's audio set up first" } }
+    )
+    mic.addEventListener("click", () => armed ? disarm() : arm())
+    // Gate the stream to Space-held. Capture phase so we still see it with the
+    // terminal focused; we never preventDefault, so Space still reaches claude.
+    addEventListener("keydown", e => { if (armed && e.code === "Space") sending = true }, true)
+    addEventListener("keyup", e => { if (armed && e.code === "Space") sending = false }, true)
+    addEventListener("blur", () => { sending = false })      // focus lost mid-hold → stop sending
   }
 
   term.onData(data => sub.perform("input", { data }))

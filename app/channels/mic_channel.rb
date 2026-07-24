@@ -7,7 +7,7 @@ require "base64"
 class MicChannel < ApplicationCable::Channel
   def subscribed
     Factory.verifier.verify(params[:token].to_s) # authorize; value unused (shared mic)
-    reject and return unless Mic.ensure!
+    return reject unless Mic.ensure!
 
     # O_NONBLOCK: opening a FIFO for write blocks until a reader (the pulse
     # pipe-source) is attached — nonblock turns "no reader yet" into a quick

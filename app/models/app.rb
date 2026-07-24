@@ -3,7 +3,7 @@ class App < ApplicationRecord
   # This box hosts one app whose name comes from APPSMOOTHLY_APP (validated below like
   # any name). "deploy"/"restore" prefix the factory-driven tmux sessions
   # (<app>--deploy / <app>--restore); "factory" prefixes the onboarding ones.
-  RESERVED_NAMES = %w[cable assets rails deploy restore up start factory].freeze
+  RESERVED_NAMES = %w[cable assets rails deploy restore rollback up start factory].freeze
 
   # The single app this box runs. Named by APPSMOOTHLY_APP (optional APPSMOOTHLY_APP_TITLE for
   # display); the row is created on first use and then carries the mutable

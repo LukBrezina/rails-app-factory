@@ -26,12 +26,14 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal ["blog", "fix-the-csv-export-bug", { prompt: "Fix the CSV export bug" }], launched
   end
 
-  test "create with a blank prompt bounces with an alert" do
-    TmuxSession.stub :launch, ->(*) { flunk "must not launch" } do
+  test "create with a blank prompt opens a plain claude tab" do
+    launched = nil
+    TmuxSession.stub :launch, ->(app, name, **opts) { launched = [name, opts] } do
       post sessions_path, params: { prompt: "   " }
     end
-    assert_redirected_to sessions_path
-    assert_equal 0, Session.count
+    assert_redirected_to session_path("claude")
+    assert Session.exists?(app: @app, name: "claude")
+    assert_equal ["claude", { prompt: nil }], launched
   end
 
   test "destroy kills tmux and deletes the row" do

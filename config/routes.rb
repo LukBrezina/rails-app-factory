@@ -11,13 +11,11 @@ Rails.application.routes.draw do
       post :forward, on: :member
     end
   end
-  resource :production, only: %i[show update] do
-    post :deploy
-  end
-  get "backups" => "backups#show", as: :backups
-  patch "backups" => "backups#update"
-  post "backups/restore" => "backups#restore", as: :backups_restore
-  post "backups/pull/:id" => "backups#pull", as: :backups_pull
+
+  # The two buttons on the sessions screen.
+  post "deploy" => "productions#deploy", as: :deploy_production
+  get "versions" => "versions#index", as: :versions
+  post "versions/rollback" => "versions#rollback", as: :versions_rollback
 
   # Caddy on-demand TLS gate: certificates only for p-<port> preview hosts
   # under this box's domain. Rack lambda so it needs no auth/session.

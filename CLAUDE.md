@@ -25,12 +25,25 @@ padding, tailwind-watcher TTY). Don't undo those without reading why.
   runs it. `bin/create-app` is the infra's tool, not driven from the UI.
 - Names: `<app>--<session>`; the `/\A\w+(?:-\w+)*\z/` validation makes `--`
   unambiguous. The app name comes from `APPSMOOTHLY_APP`; session slugs come from the
-  typed task (`Session.slug_for`), display names from Claude's own terminal
-  title.
+  typed task (`Session.slug_for`) or default to `claude`/`claude-2`/… for a
+  blank "+" tab; display names come from Claude's own terminal title.
+- One screen: root drops you into a session (the first one, or a fresh `claude`
+  tab). Tabs switch/add sessions; two buttons run the box — **Deploy**
+  (`productions#deploy`, auto-fills localhost + the box domain) and **Versions**
+  (`versions#index`: git log → roll code *and* data back to a commit). There is
+  no sidebar, no Go Live page, no Backups page.
+- Localhost-only: the factory binds loopback (`config/puma.rb`) and has no
+  in-app auth gate — the network is the boundary. Don't reintroduce
+  `APPSMOOTHLY_TRUST_NETWORK`/password.
+- Claude defaults are injected per-launch via `--permission-mode auto --settings
+  config/claude-settings.json` (light theme, `/voice`, auto-approve) and each
+  worktree is pre-trusted (`Factory.trust!`) — never edits the box's global
+  claude config.
 - `bin/hook` executes under each app's own Ruby — keep its syntax
   old-Ruby-compatible.
 - All UI copy targets someone who never coded: deploy→"go live",
   restore→"rewind", worktree→"private workspace", attached→"open in a browser".
-- Long-running work (deploy, restore) runs in visible tmux sessions named
-  `<app>--deploy/restore` — keep that pattern for new features. (App creation
-  is no longer factory-driven; it happens at provisioning time.)
+- Long-running work (deploy, rollback) runs in visible tmux sessions named
+  `<app>--deploy/rollback` — keep that pattern for new features. Rollback does
+  `git reset --hard <sha>` → deploy → `bin/restore-prod <commit time>`. (App
+  creation is no longer factory-driven; it happens at provisioning time.)

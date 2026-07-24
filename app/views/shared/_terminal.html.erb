@@ -62,6 +62,43 @@
     return true
   })
 
+  // Claude rings the terminal bell when it finishes a turn and wants you — turn
+  // that into a browser notification (permission is granted on the setup page).
+  term.onBell(() => {
+    if (window.Notification?.permission === "granted" && document.hidden) {
+      try { new Notification(document.title, { body: "Claude is done — your turn." }) } catch {}
+    }
+  })
+
+  // Voice = dictate in the browser (where you and the mic are) and type the
+  // words straight into the terminal. Works even when claude runs on a headless
+  // box, where its own /voice can't reach a microphone. Chrome/Edge only; the
+  // button hides itself otherwise. Note: Chrome sends the audio to Google's
+  // speech service for transcription.
+  const mic = document.getElementById("mic")
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+  if (mic && SR) {
+    mic.hidden = false
+    const rec = new SR()
+    rec.continuous = true
+    rec.interimResults = false
+    rec.lang = navigator.language || "en-US"
+    let on = false
+    rec.onresult = e => {
+      const text = Array.from(e.results).slice(e.resultIndex)
+        .filter(r => r.isFinal).map(r => r[0].transcript).join("").trim()
+      if (text) sub.perform("input", { data: text + " " })
+    }
+    rec.onend = () => { if (on) try { rec.start() } catch {} } // Chrome stops on silence — resume until toggled off
+    rec.onerror = ev => { if (ev.error === "not-allowed") { on = false; mic.dataset.on = "false" } }
+    mic.addEventListener("click", () => {
+      on = !on
+      mic.dataset.on = String(on)
+      if (on) { try { rec.start() } catch {} } else rec.stop()
+      term.focus()
+    })
+  }
+
   term.onData(data => sub.perform("input", { data }))
   addEventListener("resize", () => {
     fit.fit()

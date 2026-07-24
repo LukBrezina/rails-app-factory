@@ -11,6 +11,30 @@
     nothing to install on your computer.
   </p>
 
+  <article class="card bg-panel border border-line clip-tag p-4 flex items-center gap-3.5 mb-3.5">
+    <span id="perms-dot" class="dot" data-state="idle"></span>
+    <div class="flex-1">
+      <h3 class="m-0 text-[15px] font-medium text-strong leading-tight">Notifications, copy &amp; voice</h3>
+      <p class="m-0 mt-1 text-xs text-dim italic">One tap lets this page copy from the terminal, ping you when Claude finishes, and use the microphone for voice.</p>
+    </div>
+    <button id="enable-perms" type="button"
+            class="font-medium text-[11px] tracking-[0.14em] text-bg bg-live hover:brightness-110 px-3.5 py-2 clip-tag cursor-pointer whitespace-nowrap">ALLOW →</button>
+  </article>
+  <script>
+    // Browsers only grant clipboard/notifications/mic inside a real click — do
+    // all three here so copy-from-terminal and voice work everywhere after.
+    document.getElementById("enable-perms")?.addEventListener("click", async (e) => {
+      const btn = e.currentTarget
+      btn.textContent = "…"
+      try { await Notification.requestPermission() } catch {}
+      try { await navigator.clipboard.writeText("") } catch {}
+      try { (await navigator.mediaDevices.getUserMedia({ audio: true })).getTracks().forEach(t => t.stop()) } catch {}
+      btn.textContent = "✓ ALLOWED"
+      btn.disabled = true
+      document.getElementById("perms-dot").dataset.state = "live"
+    })
+  </script>
+
   <div class="flex flex-col gap-3.5 mb-6">
     <% [
       { title: "Claude", ready: @onboarding.claude_ready?, installed: @onboarding.claude_installed?, name: "claude-login",

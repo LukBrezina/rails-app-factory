@@ -17,39 +17,22 @@
   </head>
 
   <body class="h-dvh flex flex-col bg-bg text-ink font-mono text-[13px] leading-relaxed antialiased">
-    <header class="flex items-center gap-7 px-7 py-3.5 border-b border-line bg-linear-to-b from-panel to-transparent shrink-0">
-      <a class="font-serif italic font-semibold text-[21px] text-strong tracking-tight" href="<%= root_path %>">Appsmoothly</a>
+    <header class="flex items-center gap-3 sm:gap-5 px-4 sm:px-6 py-2.5 border-b border-line bg-linear-to-b from-panel to-transparent shrink-0">
+      <a class="font-serif italic font-semibold text-[19px] sm:text-[21px] text-strong tracking-tight" href="<%= root_path %>">Appsmoothly</a>
       <% if @app&.persisted? %>
-        <span class="px-3 py-1 text-[11px] tracking-[0.12em] border border-strong/40 text-strong bg-panel-2 clip-tag whitespace-nowrap"><%= @app.display_name %></span>
+        <span class="px-2.5 py-1 text-[11px] tracking-[0.12em] border border-strong/40 text-strong bg-panel-2 clip-tag whitespace-nowrap truncate max-w-[45vw]"><%= @app.display_name %></span>
       <% end %>
-      <span class="ml-auto text-[11px] text-faint tracking-[0.08em] hidden sm:block"><%= Socket.gethostname %></span>
     </header>
 
     <% if flash[:alert] || flash[:notice] %>
-      <p class="mx-7 mt-4 px-3.5 py-2.5 text-xs border clip-tag <%= flash[:alert] ? "border-danger text-danger bg-danger/5" : "border-live/40 text-live bg-live/5" %>">
+      <p class="mx-4 sm:mx-6 mt-3 px-3.5 py-2.5 text-xs border clip-tag <%= flash[:alert] ? "border-danger text-danger bg-danger/5" : "border-live/40 text-live bg-live/5" %>">
         <%= flash[:alert] || flash[:notice] %>
       </p>
     <% end %>
 
-    <div class="flex flex-1 min-h-0">
-      <% if @app&.persisted? %>
-        <aside class="w-44 shrink-0 border-r border-line-soft p-5">
-          <div class="text-[10px] tracking-[0.3em] text-faint mb-3">MENU</div>
-          <%# provisioned boxes: backups run out of the box and rewinds go through
-              Claude — the page stays reachable by URL for the admin %>
-          <% [["SESSIONS", sessions_path, "sessions"],
-              ["GO LIVE", production_path, "productions"],
-              (["BACKUPS", backups_path, "backups"] unless Factory.domain)].compact.each do |label, path, ctrl| %>
-            <a class="block px-3 py-2 mb-1 text-[11px] tracking-[0.16em] border-l-2
-                      <%= controller_name == ctrl ? "text-live border-live bg-panel" : "text-dim border-transparent hover:text-ink" %>"
-               href="<%= path %>"><%= label %></a>
-          <% end %>
-        </aside>
-      <% end %>
-      <main class="flex-1 flex flex-col min-h-0 min-w-0 overflow-auto">
-        <%= yield %>
-      </main>
-    </div>
+    <main class="flex-1 flex flex-col min-h-0 min-w-0 overflow-auto">
+      <%= yield %>
+    </main>
 
     <% if @app&.persisted? %>
       <script>

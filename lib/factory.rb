@@ -38,4 +38,18 @@ module Factory
     system("tmux", "start-server")
     BUNDLER_ENV.each { |var| system("tmux", "set-environment", "-g", "-r", var) }
   end
+
+  # Pre-accept claude's "do you trust this folder?" dialog for a worktree, so a
+  # fresh workspace opens straight into the agent. ponytail: best-effort,
+  # last-write-wins on ~/.claude.json — worst case the dialog shows once.
+  def trust!(path)
+    file = File.expand_path("~/.claude.json")
+    data = JSON.parse(File.read(file)) rescue {}
+    projects = (data["projects"] ||= {})
+    return if projects.dig(path, "hasTrustDialogAccepted")
+    (projects[path] ||= {})["hasTrustDialogAccepted"] = true
+    File.write(file, JSON.generate(data))
+  rescue StandardError
+    nil
+  end
 end

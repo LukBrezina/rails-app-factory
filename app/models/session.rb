@@ -3,9 +3,9 @@
 # a name, and removed only on explicit kill — a reboot just puts the session
 # to sleep (tmux gone, row and worktree stay; opening it wakes Claude back up).
 class Session < ApplicationRecord
-  # Factory-driven operations (go live, rewind) stay tmux-only — they appear in
-  # the list as unsaved rows and vanish when their tmux ends.
-  RESERVED = %w[deploy restore].freeze
+  # Factory-driven operations (go live, roll back) stay tmux-only — they appear
+  # in the list as unsaved rows and vanish when their tmux ends.
+  RESERVED = %w[deploy restore rollback].freeze
 
   belongs_to :app
 
@@ -28,10 +28,11 @@ class Session < ApplicationRecord
       (rows + extras).sort_by(&:created_at)
     end
 
-    # "Fix the CSV export bug" → "fix-the-csv-export-bug"; unique per app.
+    # "Fix the CSV export bug" → "fix-the-csv-export-bug"; unique per app. A
+    # blank task just opens a plain "claude" tab (claude, claude-2, …).
     def slug_for(app, prompt)
       base = prompt.parameterize.split("-").first(6).join("-")[0, 48].delete_suffix("-")
-      base = "session" if base.blank? || RESERVED.include?(base)
+      base = "claude" if base.blank? || RESERVED.include?(base)
       name, n = base, 1
       name = "#{base}-#{n += 1}" while exists?(app:, name:)
       name

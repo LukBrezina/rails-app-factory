@@ -6,6 +6,10 @@ require "shellwords"
 class TmuxSession
   # Runs app hooks from config/rails_app_factory.rb (see that file's docs)
   HOOK_RUNNER = Rails.root.join("bin/hook").to_s
+  # Baked-in Claude defaults so a fresh box "just works": light theme (matches
+  # the light browser terminal), /voice enabled, and auto-approval ("automode")
+  # — passed per-launch via --settings so we never touch the box's global config.
+  CLAUDE_FLAGS = "--permission-mode auto --settings #{Rails.root.join('config/claude-settings.json').to_s.shellescape}".freeze
   PANE_FILTER = '#{&&:#{pane_active},#{window_active}}' # active pane only = one line per session
   PANE_FORMAT = '#S;#{session_attached};#{session_created};#{pane_current_command};#{pane_title}'
 
@@ -41,6 +45,7 @@ class TmuxSession
       FileUtils.mkdir_p(Factory.worktrees_dir)
       system("git", "-C", app.path, "worktree", "add", "-b", "raf/#{name}", worktree) ||
         system("git", "-C", app.path, "worktree", "add", worktree, "raf/#{name}") # branch exists → reattach
+      Factory.trust!(worktree) # pre-accept claude's trust dialog for this worktree
       Factory.clean_tmux!
       env = { "PORT" => port.to_s, "BINDING" => "0.0.0.0", "APPSMOOTHLY_APP" => app.name, "APPSMOOTHLY_SESSION" => name }
       # S3_*: a pulled prod DB serves its attachments in dev. LITESTREAM_*: Claude
@@ -50,7 +55,8 @@ class TmuxSession
              *env.flat_map { |key, value| ["-e", "#{key}=#{value}"] })
       style(full)
       system("tmux", "rename-window", "-t", full, "claude")
-      agent = resume ? "#{app.agent} --continue" : [app.agent, prompt&.shellescape].compact.join(" ")
+      tail = resume ? "--continue" : prompt&.shellescape
+      agent = [app.agent, CLAUDE_FLAGS, tail].compact.join(" ")
       system("tmux", "send-keys", "-t", full, agent, "Enter")
       system("tmux", "new-window", "-d", "-t", full, "-n", "server", "-c", worktree)
       system("tmux", "send-keys", "-t", "#{full}:server", "'#{HOOK_RUNNER}' setup server", "Enter")

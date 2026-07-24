@@ -13,10 +13,10 @@ class SessionTest < ActiveSupport::TestCase
     assert_match(/\A\w+(?:-\w+)*\z/, long)
   end
 
-  test "slug_for falls back for empty or reserved prompts" do
+  test "slug_for falls back to claude for empty or reserved prompts" do
     app = apps(:blog)
-    assert_equal "session", Session.slug_for(app, "🎉🎉")
-    assert_equal "session", Session.slug_for(app, "deploy") # collides with the <app>--deploy ops session
+    assert_equal "claude", Session.slug_for(app, "🎉🎉")
+    assert_equal "claude", Session.slug_for(app, "deploy") # collides with the <app>--deploy ops session
   end
 
   test "for merges rows with live tmux, persists claude titles, wraps ops sessions" do
